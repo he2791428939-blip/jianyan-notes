@@ -34,35 +34,17 @@ typedef ProgressCallback = void Function(double progress);
 
 class UpdateService {
   static const _key = 'jianyan_update_url';
+  static const jsonUrl = 'https://cdn.jsdelivr.net/gh/he2791428939-blip/jianyan-notes@main/releases/version.json';
 
-  /// 构建时写入的默认地址（来自 --dart-define=DEFAULT_UPDATE_URL）
-  static const String defaultUrl = String.fromEnvironment('DEFAULT_UPDATE_URL');
-
-  /// 获取要使用的服务器地址：先读自定义，再读内置默认。
-  static Future<String> _resolveUrl() async {
-    // 1. 用户手动配置的地址
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$_key.json');
-      if (await file.exists()) {
-        final m = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-        final custom = m['url'] as String;
-        if (custom.isNotEmpty) return custom;
-      }
-    } catch (_) {}
-    // 2. 构建时写死的默认地址
-    if (defaultUrl.isNotEmpty) return defaultUrl;
-    return '';
-  }
-
-  /// 自定义服务器地址。
+  /// 用户自定义地址（如有）。
   static Future<String> getCustomUrl() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$_key.json');
       if (await file.exists()) {
         final m = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-        return m['url'] as String? ?? '';
+        final c = m['url'] as String;
+        if (c.isNotEmpty) return c;
       }
     } catch (_) {}
     return '';
@@ -73,22 +55,35 @@ class UpdateService {
     await File('${dir.path}/$_key.json').writeAsString(jsonEncode({'url': url}));
   }
 
+  /// 解析版本 URL
+  static String versionJsonUrl(String hint) {
+    final stripped = hint.endsWith('/') ? hint.substring(0, hint.length - 1) : hint;
+    return '$stripped/version.json';
+  }
+
   /// 检查是否有新版本。
-  static Future<(UpdateInfo?, String?)> checkUpdate() async {
+  static Future<(UpdateInfo?, String?)> checkUpdate([String? hintUrl]) async {
+    // 优先级：用户手动填的 > 参数传进来的 > 内置硬编码
+    final custom = await getCustomUrl();
+    final base = (custom.isNotEmpty)
+        ? custom
+        : (hintUrl != null && hintUrl.isNotEmpty)
+            ? hintUrl
+            : jsonUrl.replaceFirst('/version.json', '');
+
+    debugPrint('UpdateService: base=$base');
+
     try {
-      final baseUrl = await _resolveUrl();
-      if (baseUrl.isEmpty) {
-        return (null, '未配置更新地址，且未内置默认地址');
-      }
+      final uri = Uri.parse(versionJsonUrl(base));
+      debugPrint('UpdateService: fetching $uri');
 
       final info = await PackageInfo.fromPlatform();
       final currentCode = int.tryParse(info.buildNumber) ?? 1;
 
-      final uri = Uri.parse('$baseUrl/version.json');
       final res = await http.get(uri).timeout(const Duration(seconds: 8));
 
       if (res.statusCode != 200) {
-        return (null, '服务器返回错误: ${res.statusCode}');
+        return (null, '服务器返回 ${res.statusCode}');
       }
 
       final data = json.decode(res.body) as Map<String, dynamic>;
@@ -98,9 +93,12 @@ class UpdateService {
         return (update, null);
       }
       return (null, null);
+    } on SocketException {
+      return (null, '无法连接服务器\n请确认手机和电脑在同一 Wi-Fi');
+    } on http.ClientException catch (e) {
+      return (null, '网络请求失败: ${e.message}');
     } catch (e) {
-      debugPrint('检查更新失败: $e');
-      return (null, '网络连接失败，请检查网络');
+      return (null, '连接失败，请检查网络');
     }
   }
 

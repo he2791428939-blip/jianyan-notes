@@ -37,10 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       setState(() {
         _currentVersion = v;
-        _serverUrl = u;
-        if (u.isEmpty && UpdateService.defaultUrl.isNotEmpty) {
-          _serverUrl = UpdateService.defaultUrl;
-        }
+        _serverUrl = u.isNotEmpty ? u : 'jsDelivr CDN (内置)';
         _urlCtrl.text = u;
       });
     }
