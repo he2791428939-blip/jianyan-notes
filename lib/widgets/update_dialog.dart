@@ -79,7 +79,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               Text(widget.updateInfo.notes,
                   style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary.withValues(alpha: 0.85))),
+                      color: AppColors.lightTextSec.withValues(alpha: 0.85))),
               const SizedBox(height: 12),
             ],
             if (_error != null)
@@ -101,7 +101,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 child: LinearProgressIndicator(
                   value: _progress,
                   minHeight: 6,
-                  backgroundColor: AppColors.surface,
+                  backgroundColor: AppColors.lightSurface,
                   valueColor: const AlwaysStoppedAnimation(AppColors.primary),
                 ),
               ),
@@ -109,7 +109,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               Text('${(_progress * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary.withValues(alpha: 0.7))),
+                      color: AppColors.lightTextSec.withValues(alpha: 0.7))),
             ],
             if (_downloadDone)
               const Padding(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/theme.dart';
 import '../providers/bg_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/background_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
@@ -123,6 +124,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return ListView(
       children: [
         const SizedBox(height: 8),
+
+        // ═══ 主题 ═══
+        _Section(
+          children: [
+            SwitchListTile(
+              secondary: Icon(
+                ref.watch(darkModeProvider) ? Icons.dark_mode : Icons.light_mode,
+                color: AppColors.primary,
+              ),
+              title: const Text('深色模式'),
+              subtitle: Text(ref.watch(darkModeProvider) ? '已开启 — 夜间更护眼' : '已关闭'),
+              value: ref.watch(darkModeProvider),
+              onChanged: (_) => ref.read(darkModeProvider.notifier).toggle(),
+            ),
+          ],
+        ),
 
         // ═══ 背景选择 ═══
         _Section(

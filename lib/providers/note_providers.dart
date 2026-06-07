@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/database.dart';
 import '../data/local_note_repository.dart';
@@ -65,8 +66,12 @@ class NoteActionsNotifier extends Notifier<void> {
     ref.invalidate(foldersProvider);
   }
 
-  Future<void> delete(String id) async {
-    await _repo.deleteNote(id);
+  Future<void> delete(NoteModel note) async {
+    // 清理关联图片
+    if (note.imagePath != null && note.imagePath!.isNotEmpty) {
+      try { await File(note.imagePath!).delete(); } catch (_) {}
+    }
+    await _repo.deleteNote(note.id);
     ref.invalidate(foldersProvider);
   }
 }
