@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
+import '../providers/bg_provider.dart';
+import '../services/background_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
 
 /// 设置页面。
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currentVersion = '加载中...';
   bool _checking = false;
 
@@ -29,7 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _checkUpdate() async {
     if (_checking) return;
     setState(() => _checking = true);
-
     try {
       final info = await UpdateService.checkUpdate();
       if (mounted) {
@@ -54,9 +56,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentBg = ref.watch(backgroundProvider);
+
     return ListView(
       children: [
         const SizedBox(height: 8),
+        // 背景选择
+        _Section(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.palette_outlined, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('首页背景', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  const Spacer(),
+                  Text('${AppBackground.presets.length} 种可选',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 80,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: AppBackground.presets.map((bg) {
+                  final selected = currentBg.maybeWhen(
+                    data: (b) => b.id == bg.id,
+                    orElse: () => false,
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: GestureDetector(
+                      onTap: () => ref.read(backgroundProvider.notifier).select(bg),
+                      child: Container(
+                        width: 64,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selected ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.15),
+                            width: selected ? 2.5 : 1,
+                          ),
+                          gradient: bg.gradient != null
+                              ? LinearGradient(colors: bg.gradient!, begin: Alignment.topCenter, end: Alignment.bottomCenter)
+                              : null,
+                          color: bg.color,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (selected)
+                              const Icon(Icons.check_circle, color: AppColors.primary, size: 22)
+                            else
+                              const Icon(Icons.circle_outlined,
+                                  size: 22,
+                                  color: Color(0x00000000)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
         // 版本信息
         _Section(
           children: [
@@ -75,11 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: const Text('检查更新'),
               subtitle: const Text('检查并下载最新版本'),
               trailing: _checking
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.chevron_right, color: AppColors.textSecondary),
               onTap: _checkUpdate,
             ),
@@ -87,14 +150,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 24),
         Center(
-          child: Text(
-            '简言笔记 — 简洁记录每一天',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary.withValues(alpha: 0.5),
-            ),
-          ),
+          child: Text('简言笔记 — 简洁记录每一天',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withValues(alpha: 0.5))),
         ),
+        const SizedBox(height: 32),
       ],
     );
   }

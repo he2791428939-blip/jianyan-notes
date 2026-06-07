@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/note_model.dart';
 import '../providers/note_providers.dart';
+import '../providers/bg_provider.dart';
 import '../widgets/note_card.dart';
 import 'folders_screen.dart';
 import 'settings_screen.dart';
@@ -22,6 +23,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesProvider);
+    final bgAsync = ref.watch(backgroundProvider);
 
     final pages = [
       // Tab 0 — 笔记网格
@@ -35,6 +37,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Tab 2 — 设置
       const SettingsScreen(),
     ];
+
+    final body = IndexedStack(index: _tab, children: pages);
 
     return Scaffold(
       appBar: _tab == 2
@@ -67,7 +71,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
               ],
             ),
-      body: IndexedStack(index: _tab, children: pages),
+      body: bgAsync.maybeWhen(
+        data: (bg) => bg.build(child: body),
+        orElse: () => body,
+      ),
       floatingActionButton: _tab == 0
           ? FloatingActionButton(
               onPressed: () => context.push('/editor'),

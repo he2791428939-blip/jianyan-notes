@@ -25,6 +25,8 @@ class EditorScreen extends ConsumerStatefulWidget {
 class _EditorScreenState extends ConsumerState<EditorScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
+  late final FocusNode _titleFocus;
+  late final FocusNode _contentFocus;
   final _picker = ImagePicker();
   String? _imagePath;
   String _folder = '';
@@ -39,6 +41,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     super.initState();
     _titleController = TextEditingController();
     _contentController = TextEditingController();
+    _titleFocus = FocusNode();
+    _contentFocus = FocusNode();
     _folder = widget.initialFolder ?? '';
 
     if (_isEditing) {
@@ -104,7 +108,76 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  // ── 文本格式操作 ──────────────────────────────────
+
+  /// 获取当前焦点所在的 TextEditingController。
+  TextEditingController? get _focusedController {
+    if (_titleFocus.hasFocus) return _titleController;
+    if (_contentFocus.hasFocus) return _contentController;
+    return _contentController; // 默认正文
+  }
+
+  /// 在光标处插入 markdown 包围标记，或包裹选中文本。
+  void _wrapSelection(String open, String close) {
+    final ctrl = _focusedController!;
+    final text = ctrl.text;
+    final sel = ctrl.selection;
+    final start = sel.start;
+    final end = sel.end;
+
+    if (start < 0) return;
+
+    if (sel.isCollapsed) {
+      // 无选中：插入 **|**
+      const placeholder = '文本';
+      final newText = text.replaceRange(start, end, '$open$placeholder$close');
+      ctrl.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: start + open.length + placeholder.length),
+      );
+    } else {
+      // 有选中：用标记包裹选中文本
+      final selected = text.substring(start, end);
+      final newText = text.replaceRange(start, end, '$open$selected$close');
+      ctrl.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: start + open.length + selected.length + close.length),
+      );
+    }
+  }
+
+  void _insertBold() => _wrapSelection('**', '**');
+  void _insertItalic() => _wrapSelection('*', '*');
+  void _insertHeading() {
+    final ctrl = _focusedController!;
+    final text = ctrl.text;
+    // 在当前行首插入 ##
+    final lineStart = _lineStart(text, ctrl.selection.start);
+    final newText = text.replaceRange(lineStart, lineStart, '## ');
+    ctrl.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: lineStart + 3),
+    );
+  }
+
+  void _insertList() {
+    final ctrl = _focusedController!;
+    final text = ctrl.text;
+    final lineStart = _lineStart(text, ctrl.selection.start);
+    final newText = text.replaceRange(lineStart, lineStart, '- ');
+    ctrl.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: lineStart + 2),
+    );
+  }
+
+  int _lineStart(String text, int pos) {
+    if (pos <= 0) return 0;
+    final prevNewline = text.lastIndexOf('\n', pos - 1);
+    return prevNewline == -1 ? 0 : prevNewline + 1;
+  }
+
+  void _pickImage() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -214,6 +287,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _titleFocus.dispose();
+    _contentFocus.dispose();
     super.dispose();
   }
 
@@ -291,6 +366,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: TextField(
               controller: _titleController,
+              focusNode: _titleFocus,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
@@ -306,6 +382,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: TextField(
                 controller: _contentController,
+                focusNode: _contentFocus,
                 style: const TextStyle(
                   fontSize: 16,
                   color: AppColors.textPrimary,
@@ -318,7 +395,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               ),
             ),
           ),
-          NoteToolbar(onPickImage: _pickImage),
+          NoteToolbar(
+            onPickImage: _pickImage,
+            onBold: _insertBold,
+            onItalic: _insertItalic,
+            onHeading: _insertHeading,
+            onList: _insertList,
+          ),
         ],
       ),
       ),
