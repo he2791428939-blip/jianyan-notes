@@ -216,7 +216,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Widget _buildFolderRow() {
     final foldersAsync = ref.watch(foldersProvider);
-    final folders = foldersAsync.maybeWhen(data: (f) => f, orElse: () => <String>[]);
+    final dbFolders = foldersAsync.maybeWhen(data: (f) => f, orElse: () => <String>[]);
+
+    // 合并本地新建但还没存笔记的分类
+    final allFolders = [...dbFolders];
+    if (_folder.isNotEmpty && !allFolders.contains(_folder)) {
+      allFolders.insert(0, _folder);
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -225,18 +231,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         child: ListView(
           scrollDirection: Axis.horizontal,
           children: [
-            // "无分类" chip
             _FolderChip(
               label: '无分类',
               selected: _folder.isEmpty,
               onTap: () => setState(() => _folder = ''),
             ),
-            ...folders.map((f) => _FolderChip(
+            ...allFolders.map((f) => _FolderChip(
                   label: f,
                   selected: _folder == f,
                   onTap: () => setState(() => _folder = f),
                 )),
-            // "新建" chip
             _FolderChip(
               label: '+ 新建',
               selected: false,

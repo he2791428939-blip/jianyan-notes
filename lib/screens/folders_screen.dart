@@ -60,7 +60,7 @@ class FoldersScreen extends ConsumerWidget {
                         count: uncategorized,
                         color: AppColors.cardColors[0],
                         iconColor: AppColors.cardIconColors[0],
-                        onTap: () => context.push('/folder/'),
+                        onTap: () => context.push('/folder/', extra: ''),
                       ),
                     ...folders.map((f) {
                       final count = allNotes.where((n) => n.folder == f).length;
@@ -72,7 +72,7 @@ class FoldersScreen extends ConsumerWidget {
                         color: AppColors.cardColors[idx],
                         iconColor: AppColors.cardIconColors[idx],
                         onTap: () =>
-                            context.push('/folder/${Uri.encodeComponent(f)}'),
+                            context.push('/folder/${Uri.encodeComponent(f)}', extra: f),
                       );
                     }),
                   ],

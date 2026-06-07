@@ -29,9 +29,11 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/folder/:folder',
-      builder: (_, state) => FolderDetailScreen(
-        folder: Uri.decodeComponent(state.pathParameters['folder']!),
-      ),
+      builder: (_, state) {
+        // 优先从 extra 取（避免 URL 编码问题），兜底从 path 解码
+        final f = (state.extra as String?) ?? Uri.decodeComponent(state.pathParameters['folder']!);
+        return FolderDetailScreen(folder: f);
+      },
     ),
   ],
 );
