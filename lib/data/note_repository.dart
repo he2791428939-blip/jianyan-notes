@@ -14,5 +14,6 @@ abstract class NoteRepository {
     int colorIndex = 0,
   });
   Future<bool> updateNote(NoteModel note);
+  Future<bool> togglePin(String id, bool pinned);
   Future<bool> deleteNote(String id);
 }

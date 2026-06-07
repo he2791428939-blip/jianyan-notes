@@ -12,6 +12,7 @@ class Notes extends Table {
   TextColumn get content => text().withDefault(const Constant(''))();
   TextColumn get imagePath => text().nullable()();
   TextColumn get folder => text().withDefault(const Constant(''))();
+  BoolColumn get pinned => boolean().withDefault(const Constant(false))();
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -25,17 +26,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-        },
+        onCreate: (m) async => await m.createAll(),
         onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(notes, notes.folder);
-          }
+          if (from < 2) await m.addColumn(notes, notes.folder);
+          if (from < 3) await m.addColumn(notes, notes.pinned);
         },
       );
 }
@@ -44,16 +42,13 @@ class AppDatabase extends _$AppDatabase {
 class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
   NoteDao(super.db);
 
-  Future<List<Note>> getAllNotes() =>
-      (select(notes)..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
-
   Stream<List<Note>> watchAllNotes() =>
-      (select(notes)..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).watch();
+      (select(notes)..orderBy([(t) => OrderingTerm.desc(t.pinned), (t) => OrderingTerm.desc(t.updatedAt)])).watch();
 
   Stream<List<Note>> watchNotesByFolder(String folder) =>
       (select(notes)
             ..where((t) => t.folder.equals(folder))
-            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+            ..orderBy([(t) => OrderingTerm.desc(t.pinned), (t) => OrderingTerm.desc(t.updatedAt)]))
           .watch();
 
   Future<List<String>> getFolders() async {
@@ -76,13 +71,13 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
   Stream<Note?> watchNote(String id) =>
       (select(notes)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<Note> insertNote(NotesCompanion entry) =>
-      into(notes).insertReturning(entry);
+  Future<Note> insertNote(NotesCompanion entry) => into(notes).insertReturning(entry);
 
   Future<bool> updateNote(String id, NotesCompanion data) =>
-      (update(notes)..where((t) => t.id.equals(id)))
-          .write(data)
-          .then((c) => c > 0);
+      (update(notes)..where((t) => t.id.equals(id))).write(data).then((c) => c > 0);
+
+  Future<bool> togglePin(String id, bool newValue) =>
+      (update(notes)..where((t) => t.id.equals(id))).write(NotesCompanion(pinned: Value(newValue))).then((c) => c > 0);
 
   Future<bool> deleteNote(String id) =>
       (delete(notes)..where((t) => t.id.equals(id))).go().then((c) => c > 0);

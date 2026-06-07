@@ -66,8 +66,11 @@ class NoteActionsNotifier extends Notifier<void> {
     ref.invalidate(foldersProvider);
   }
 
+  Future<void> togglePin(NoteModel note) async {
+    await _repo.togglePin(note.id, !note.pinned);
+  }
+
   Future<void> delete(NoteModel note) async {
-    // 清理关联图片
     if (note.imagePath != null && note.imagePath!.isNotEmpty) {
       try { await File(note.imagePath!).delete(); } catch (_) {}
     }

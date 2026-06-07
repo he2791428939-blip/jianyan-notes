@@ -41,6 +41,15 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _pinnedMeta = const VerificationMeta('pinned');
+  @override
+  late final GeneratedColumn<bool> pinned = GeneratedColumn<bool>(
+      'pinned', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("pinned" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _colorIndexMeta =
       const VerificationMeta('colorIndex');
   @override
@@ -66,8 +75,17 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, title, content, imagePath, folder, colorIndex, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        title,
+        content,
+        imagePath,
+        folder,
+        pinned,
+        colorIndex,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -98,6 +116,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     if (data.containsKey('folder')) {
       context.handle(_folderMeta,
           folder.isAcceptableOrUnknown(data['folder']!, _folderMeta));
+    }
+    if (data.containsKey('pinned')) {
+      context.handle(_pinnedMeta,
+          pinned.isAcceptableOrUnknown(data['pinned']!, _pinnedMeta));
     }
     if (data.containsKey('color_index')) {
       context.handle(
@@ -132,6 +154,8 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
           .read(DriftSqlType.string, data['${effectivePrefix}image_path']),
       folder: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}folder'])!,
+      pinned: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}pinned'])!,
       colorIndex: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}color_index'])!,
       createdAt: attachedDatabase.typeMapping
@@ -153,6 +177,7 @@ class Note extends DataClass implements Insertable<Note> {
   final String content;
   final String? imagePath;
   final String folder;
+  final bool pinned;
   final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -162,6 +187,7 @@ class Note extends DataClass implements Insertable<Note> {
       required this.content,
       this.imagePath,
       required this.folder,
+      required this.pinned,
       required this.colorIndex,
       required this.createdAt,
       required this.updatedAt});
@@ -175,6 +201,7 @@ class Note extends DataClass implements Insertable<Note> {
       map['image_path'] = Variable<String>(imagePath);
     }
     map['folder'] = Variable<String>(folder);
+    map['pinned'] = Variable<bool>(pinned);
     map['color_index'] = Variable<int>(colorIndex);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -190,6 +217,7 @@ class Note extends DataClass implements Insertable<Note> {
           ? const Value.absent()
           : Value(imagePath),
       folder: Value(folder),
+      pinned: Value(pinned),
       colorIndex: Value(colorIndex),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -205,6 +233,7 @@ class Note extends DataClass implements Insertable<Note> {
       content: serializer.fromJson<String>(json['content']),
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       folder: serializer.fromJson<String>(json['folder']),
+      pinned: serializer.fromJson<bool>(json['pinned']),
       colorIndex: serializer.fromJson<int>(json['colorIndex']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -219,6 +248,7 @@ class Note extends DataClass implements Insertable<Note> {
       'content': serializer.toJson<String>(content),
       'imagePath': serializer.toJson<String?>(imagePath),
       'folder': serializer.toJson<String>(folder),
+      'pinned': serializer.toJson<bool>(pinned),
       'colorIndex': serializer.toJson<int>(colorIndex),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -231,6 +261,7 @@ class Note extends DataClass implements Insertable<Note> {
           String? content,
           Value<String?> imagePath = const Value.absent(),
           String? folder,
+          bool? pinned,
           int? colorIndex,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
@@ -240,6 +271,7 @@ class Note extends DataClass implements Insertable<Note> {
         content: content ?? this.content,
         imagePath: imagePath.present ? imagePath.value : this.imagePath,
         folder: folder ?? this.folder,
+        pinned: pinned ?? this.pinned,
         colorIndex: colorIndex ?? this.colorIndex,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -251,6 +283,7 @@ class Note extends DataClass implements Insertable<Note> {
       content: data.content.present ? data.content.value : this.content,
       imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       folder: data.folder.present ? data.folder.value : this.folder,
+      pinned: data.pinned.present ? data.pinned.value : this.pinned,
       colorIndex:
           data.colorIndex.present ? data.colorIndex.value : this.colorIndex,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -266,6 +299,7 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('content: $content, ')
           ..write('imagePath: $imagePath, ')
           ..write('folder: $folder, ')
+          ..write('pinned: $pinned, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -274,8 +308,8 @@ class Note extends DataClass implements Insertable<Note> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, title, content, imagePath, folder, colorIndex, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, title, content, imagePath, folder, pinned,
+      colorIndex, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -285,6 +319,7 @@ class Note extends DataClass implements Insertable<Note> {
           other.content == this.content &&
           other.imagePath == this.imagePath &&
           other.folder == this.folder &&
+          other.pinned == this.pinned &&
           other.colorIndex == this.colorIndex &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -296,6 +331,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String> content;
   final Value<String?> imagePath;
   final Value<String> folder;
+  final Value<bool> pinned;
   final Value<int> colorIndex;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -306,6 +342,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.content = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.folder = const Value.absent(),
+    this.pinned = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -317,6 +354,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.content = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.folder = const Value.absent(),
+    this.pinned = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -328,6 +366,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? content,
     Expression<String>? imagePath,
     Expression<String>? folder,
+    Expression<bool>? pinned,
     Expression<int>? colorIndex,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -339,6 +378,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (content != null) 'content': content,
       if (imagePath != null) 'image_path': imagePath,
       if (folder != null) 'folder': folder,
+      if (pinned != null) 'pinned': pinned,
       if (colorIndex != null) 'color_index': colorIndex,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -352,6 +392,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       Value<String>? content,
       Value<String?>? imagePath,
       Value<String>? folder,
+      Value<bool>? pinned,
       Value<int>? colorIndex,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -362,6 +403,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       content: content ?? this.content,
       imagePath: imagePath ?? this.imagePath,
       folder: folder ?? this.folder,
+      pinned: pinned ?? this.pinned,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -387,6 +429,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (folder.present) {
       map['folder'] = Variable<String>(folder.value);
     }
+    if (pinned.present) {
+      map['pinned'] = Variable<bool>(pinned.value);
+    }
     if (colorIndex.present) {
       map['color_index'] = Variable<int>(colorIndex.value);
     }
@@ -410,6 +455,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('content: $content, ')
           ..write('imagePath: $imagePath, ')
           ..write('folder: $folder, ')
+          ..write('pinned: $pinned, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -437,6 +483,7 @@ typedef $$NotesTableCreateCompanionBuilder = NotesCompanion Function({
   Value<String> content,
   Value<String?> imagePath,
   Value<String> folder,
+  Value<bool> pinned,
   Value<int> colorIndex,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -448,6 +495,7 @@ typedef $$NotesTableUpdateCompanionBuilder = NotesCompanion Function({
   Value<String> content,
   Value<String?> imagePath,
   Value<String> folder,
+  Value<bool> pinned,
   Value<int> colorIndex,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -476,6 +524,9 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
 
   ColumnFilters<String> get folder => $composableBuilder(
       column: $table.folder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get pinned => $composableBuilder(
+      column: $table.pinned, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => ColumnFilters(column));
@@ -511,6 +562,9 @@ class $$NotesTableOrderingComposer
   ColumnOrderings<String> get folder => $composableBuilder(
       column: $table.folder, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get pinned => $composableBuilder(
+      column: $table.pinned, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => ColumnOrderings(column));
 
@@ -544,6 +598,9 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<String> get folder =>
       $composableBuilder(column: $table.folder, builder: (column) => column);
+
+  GeneratedColumn<bool> get pinned =>
+      $composableBuilder(column: $table.pinned, builder: (column) => column);
 
   GeneratedColumn<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => column);
@@ -583,6 +640,7 @@ class $$NotesTableTableManager extends RootTableManager<
             Value<String> content = const Value.absent(),
             Value<String?> imagePath = const Value.absent(),
             Value<String> folder = const Value.absent(),
+            Value<bool> pinned = const Value.absent(),
             Value<int> colorIndex = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -594,6 +652,7 @@ class $$NotesTableTableManager extends RootTableManager<
             content: content,
             imagePath: imagePath,
             folder: folder,
+            pinned: pinned,
             colorIndex: colorIndex,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -605,6 +664,7 @@ class $$NotesTableTableManager extends RootTableManager<
             Value<String> content = const Value.absent(),
             Value<String?> imagePath = const Value.absent(),
             Value<String> folder = const Value.absent(),
+            Value<bool> pinned = const Value.absent(),
             Value<int> colorIndex = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -616,6 +676,7 @@ class $$NotesTableTableManager extends RootTableManager<
             content: content,
             imagePath: imagePath,
             folder: folder,
+            pinned: pinned,
             colorIndex: colorIndex,
             createdAt: createdAt,
             updatedAt: updatedAt,

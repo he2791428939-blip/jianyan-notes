@@ -15,6 +15,7 @@ class LocalNoteRepository implements NoteRepository {
       content: row.content,
       imagePath: row.imagePath,
       folder: row.folder,
+      pinned: row.pinned,
       colorIndex: row.colorIndex,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -28,6 +29,7 @@ class LocalNoteRepository implements NoteRepository {
       content: Value(note.content),
       imagePath: Value(note.imagePath),
       folder: Value(note.folder),
+      pinned: Value(note.pinned),
       colorIndex: Value(note.colorIndex),
       createdAt: Value(note.createdAt),
       updatedAt: Value(note.updatedAt),
@@ -83,6 +85,11 @@ class LocalNoteRepository implements NoteRepository {
   Future<bool> updateNote(NoteModel note) async {
     final updated = note.copyWith(updatedAt: DateTime.now());
     return _db.noteDao.updateNote(updated.id, _toCompanion(updated));
+  }
+
+  @override
+  Future<bool> togglePin(String id, bool pinned) async {
+    return _db.noteDao.togglePin(id, pinned);
   }
 
   @override

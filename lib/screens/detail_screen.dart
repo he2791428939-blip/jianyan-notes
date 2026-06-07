@@ -39,6 +39,11 @@ class DetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('笔记'),
             actions: [
+              IconButton(
+                icon: Icon(n.pinned ? Icons.push_pin : Icons.push_pin_outlined),
+                tooltip: n.pinned ? '取消置顶' : '置顶',
+                onPressed: () => ref.read(noteActionsProvider.notifier).togglePin(n),
+              ),
               IconButton(icon: const Icon(Icons.edit_outlined), tooltip: '编辑',
                   onPressed: () => context.push('/editor/${n.id}')),
               IconButton(icon: const Icon(Icons.delete_outline), tooltip: '删除',

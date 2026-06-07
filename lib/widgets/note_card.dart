@@ -36,10 +36,19 @@ class NoteCard extends StatelessWidget {
           children: [
             Expanded(
               flex: 2,
-              child: hasImage
-                  ? Image.file(File(note.imagePath!), fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _ColorBlock(bgColor: bgColor, iconColor: iconColor, title: note.title))
-                  : _ColorBlock(bgColor: bgColor, iconColor: iconColor, title: note.title),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  hasImage
+                      ? Image.file(File(note.imagePath!), fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _ColorBlock(bgColor: bgColor, iconColor: iconColor, title: note.title))
+                      : _ColorBlock(bgColor: bgColor, iconColor: iconColor, title: note.title),
+                  if (note.pinned)
+                    Positioned(top: 4, right: 4,
+                      child: Icon(Icons.push_pin, size: 16, color: iconColor.withValues(alpha: 0.85))),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
