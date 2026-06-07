@@ -6,6 +6,7 @@ import '../models/note_model.dart';
 import '../providers/note_providers.dart';
 import '../widgets/note_card.dart';
 import 'folders_screen.dart';
+import 'settings_screen.dart';
 
 /// 主框架 — 底栏三标签切换。
 class HomeScreen extends ConsumerStatefulWidget {
@@ -31,22 +32,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       // Tab 1 — 分类列表
       const FoldersScreen(),
-      // Tab 2 — 设置占位
-      Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.settings_outlined,
-                size: 56,
-                color: AppColors.textSecondary.withValues(alpha: 0.4)),
-            const SizedBox(height: 12),
-            Text('设置功能将在后续版本推出',
-                style: TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textSecondary.withValues(alpha: 0.6))),
-          ],
-        ),
-      ),
+      // Tab 2 — 设置
+      const SettingsScreen(),
     ];
 
     return Scaffold(
