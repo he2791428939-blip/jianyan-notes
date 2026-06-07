@@ -8,6 +8,7 @@ class AppBackground {
   final String name;
   final Color? color;
   final List<Color>? gradient;
+  final String? imagePath; // 自定义图片路径
   final bool isPreset;
 
   const AppBackground({
@@ -15,6 +16,7 @@ class AppBackground {
     required this.name,
     this.color,
     this.gradient,
+    this.imagePath,
     this.isPreset = true,
   });
 
@@ -33,6 +35,7 @@ class AppBackground {
         gradient: j['gradient'] != null
             ? (j['gradient'] as List).map((c) => Color(c as int)).toList()
             : null,
+        imagePath: j['imagePath'] as String?,
         isPreset: j['isPreset'] as bool? ?? true,
       );
 
@@ -41,10 +44,23 @@ class AppBackground {
         'name': name,
         'color': color?.toARGB32(),
         'gradient': gradient?.map((c) => c.toARGB32()).toList(),
+        'imagePath': imagePath,
         'isPreset': isPreset,
       };
 
   Widget build({required Widget child}) {
+    // 自定义图片背景
+    if (imagePath != null && File(imagePath!).existsSync()) {
+      return Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: FileImage(File(imagePath!)),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: child,
+      );
+    }
     if (gradient != null) {
       return Container(
         decoration: BoxDecoration(
@@ -63,23 +79,86 @@ class AppBackground {
     return child;
   }
 
-  static const _key = 'jianyan_selected_bg';
+  // ── 持久化 ──────────────────────────────────────────
 
+  static const _selKey = 'jianyan_selected_bg';
+  static const _customKey = 'jianyan_custom_bgs';
+
+  /// 保存当前选中背景 ID。
   static Future<void> saveSelection(String id) async {
     final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/$_key.json');
+    final file = File('${dir.path}/$_selKey.json');
     await file.writeAsString(jsonEncode({'id': id}));
   }
 
   static Future<String> loadSelection() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$_key.json');
+      final file = File('${dir.path}/$_selKey.json');
       if (await file.exists()) {
         final map = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
         return map['id'] as String? ?? 'white';
       }
     } catch (_) {}
     return 'white';
+  }
+
+  /// 加载自定义背景列表。
+  static Future<List<AppBackground>> loadCustom() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$_customKey.json');
+      if (await file.exists()) {
+        final list = jsonDecode(await file.readAsString()) as List<dynamic>;
+        return list.map((e) => AppBackground.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// 保存自定义背景列表。
+  static Future<void> saveCustom(List<AppBackground> list) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$_customKey.json');
+    await file.writeAsString(jsonEncode(list.map((b) => b.toJson()).toList()));
+  }
+
+  /// 添加自定义背景（拷贝图片到持久目录）。
+  static Future<AppBackground> addCustom(String sourcePath) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final bgDir = Directory('${dir.path}/backgrounds');
+    if (!await bgDir.exists()) await bgDir.create(recursive: true);
+
+    final ms = DateTime.now().millisecondsSinceEpoch;
+    final dest = File('${bgDir.path}/bg_$ms.jpg');
+    await File(sourcePath).copy(dest.path);
+
+    final bg = AppBackground(
+      id: 'custom_$ms',
+      name: '我的背景',
+      imagePath: dest.path,
+      color: null,
+      gradient: null,
+      isPreset: false,
+    );
+
+    final all = await loadCustom();
+    all.add(bg);
+    await saveCustom(all);
+    return bg;
+  }
+
+  /// 删除自定义背景（同时清除图片文件）。
+  static Future<void> removeCustom(String id) async {
+    final all = await loadCustom();
+    final target = all.firstWhere((b) => b.id == id, orElse: () => all[0]);
+    if (target.imagePath != null) {
+      try { await File(target.imagePath!).delete(); } catch (_) {}
+    }
+    all.removeWhere((b) => b.id == id);
+    await saveCustom(all);
+    // 如果当前选中了这个被删的背景，回退到纯白
+    final current = await loadSelection();
+    if (current == id) await saveSelection('white');
   }
 }

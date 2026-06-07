@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../core/theme.dart';
 import '../providers/bg_provider.dart';
 import '../services/background_service.dart';
@@ -54,9 +56,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _addCustomBg() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1920);
+    if (picked == null) return;
+
+    final bg = await ref.read(allBackgroundsProvider.notifier).addCustom(picked.path);
+    await ref.read(backgroundProvider.notifier).select(bg);
+  }
+
+  void _showDeleteDialog(AppBackground bg) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除背景'),
+        content: const Text('确定要删除这个自定义背景吗？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () {
+              ref.read(allBackgroundsProvider.notifier).removeCustom(bg.id);
+              ref.read(backgroundProvider.notifier).select(AppBackground.presets[0]);
+              Navigator.pop(ctx);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentBg = ref.watch(backgroundProvider);
+    final allBgAsync = ref.watch(allBackgroundsProvider);
+    final currentBgAsync = ref.watch(backgroundProvider);
 
     return ListView(
       children: [
@@ -72,53 +106,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(width: 8),
                   const Text('首页背景', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
                   const Spacer(),
-                  Text('${AppBackground.presets.length} 种可选',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+                  allBgAsync.when(
+                    data: (all) => Text(
+                      '${all.length} 种可选',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                    ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
             SizedBox(
               height: 80,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: AppBackground.presets.map((bg) {
-                  final selected = currentBg.maybeWhen(
-                    data: (b) => b.id == bg.id,
-                    orElse: () => false,
+              child: allBgAsync.when(
+                data: (all) {
+                  return ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: [
+                      // 预设 + 自定义
+                      ...all.map((bg) => _buildBgTile(bg, currentBgAsync)),
+                      // "+" 添加按钮
+                      _buildAddTile(),
+                    ],
                   );
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: GestureDetector(
-                      onTap: () => ref.read(backgroundProvider.notifier).select(bg),
-                      child: Container(
-                        width: 64,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selected ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.15),
-                            width: selected ? 2.5 : 1,
-                          ),
-                          gradient: bg.gradient != null
-                              ? LinearGradient(colors: bg.gradient!, begin: Alignment.topCenter, end: Alignment.bottomCenter)
-                              : null,
-                          color: bg.color,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (selected)
-                              const Icon(Icons.check_circle, color: AppColors.primary, size: 22)
-                            else
-                              const Icon(Icons.circle_outlined,
-                                  size: 22,
-                                  color: Color(0x00000000)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                },
+                loading: () => const Center(
+                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                error: (_, __) => const SizedBox.shrink(),
               ),
             ),
             const SizedBox(height: 8),
@@ -155,6 +172,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  Widget _buildBgTile(AppBackground bg, AsyncValue<AppBackground> currentAsync) {
+    final selected = currentAsync.maybeWhen(data: (b) => b.id == bg.id, orElse: () => false);
+
+    Widget tile = GestureDetector(
+      onTap: () => ref.read(backgroundProvider.notifier).select(bg),
+      onLongPress: bg.isPreset ? null : () => _showDeleteDialog(bg),
+      child: Container(
+        width: 64,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.15),
+            width: selected ? 2.5 : 1,
+          ),
+          gradient: bg.gradient != null
+              ? LinearGradient(colors: bg.gradient!, begin: Alignment.topCenter, end: Alignment.bottomCenter)
+              : null,
+          color: bg.color,
+          image: bg.imagePath != null
+              ? DecorationImage(image: FileImage(File(bg.imagePath!)), fit: BoxFit.cover)
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (selected)
+              const Icon(Icons.check_circle, color: AppColors.primary, size: 22)
+            else
+              const SizedBox(width: 22, height: 22),
+          ],
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: tile,
+    );
+  }
+
+  Widget _buildAddTile() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: GestureDetector(
+        onTap: _addCustomBg,
+        child: Container(
+          width: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.3), width: 1.5, style: BorderStyle.solid),
+            color: AppColors.surface,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 22, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+              const SizedBox(height: 2),
+              Text('添加', style: TextStyle(fontSize: 10, color: AppColors.textSecondary.withValues(alpha: 0.5))),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
