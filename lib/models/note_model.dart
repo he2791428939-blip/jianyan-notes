@@ -6,6 +6,8 @@ class NoteModel {
   final String? imagePath;
   final String folder;
   final bool pinned;
+  final bool deleted;
+  final DateTime? deletedAt;
   final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -17,6 +19,8 @@ class NoteModel {
     this.imagePath,
     required this.folder,
     required this.pinned,
+    required this.deleted,
+    this.deletedAt,
     required this.colorIndex,
     required this.createdAt,
     required this.updatedAt,
@@ -30,6 +34,8 @@ class NoteModel {
     bool clearImage = false,
     String? folder,
     bool? pinned,
+    bool? deleted,
+    DateTime? deletedAt,
     int? colorIndex,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -41,6 +47,8 @@ class NoteModel {
       imagePath: clearImage ? null : (imagePath ?? this.imagePath),
       folder: folder ?? this.folder,
       pinned: pinned ?? this.pinned,
+      deleted: deleted ?? this.deleted,
+      deletedAt: deletedAt ?? this.deletedAt,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -53,6 +61,7 @@ class NoteModel {
     String? imagePath,
     String folder = '',
     bool pinned = false,
+    bool deleted = false,
     int colorIndex = 0,
   }) {
     final now = DateTime.now();
@@ -63,6 +72,7 @@ class NoteModel {
       imagePath: imagePath,
       folder: folder,
       pinned: pinned,
+      deleted: deleted,
       colorIndex: colorIndex,
       createdAt: now,
       updatedAt: now,

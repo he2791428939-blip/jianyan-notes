@@ -10,90 +10,39 @@ class LocalNoteRepository implements NoteRepository {
 
   NoteModel _toModel(Note row) {
     return NoteModel(
-      id: row.id,
-      title: row.title,
-      content: row.content,
-      imagePath: row.imagePath,
-      folder: row.folder,
-      pinned: row.pinned,
-      colorIndex: row.colorIndex,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      id: row.id, title: row.title, content: row.content,
+      imagePath: row.imagePath, folder: row.folder,
+      pinned: row.pinned, deleted: row.deleted, deletedAt: row.deletedAt,
+      colorIndex: row.colorIndex, createdAt: row.createdAt, updatedAt: row.updatedAt,
     );
   }
 
   NotesCompanion _toCompanion(NoteModel note) {
     return NotesCompanion(
-      id: Value(note.id),
-      title: Value(note.title),
-      content: Value(note.content),
-      imagePath: Value(note.imagePath),
-      folder: Value(note.folder),
-      pinned: Value(note.pinned),
-      colorIndex: Value(note.colorIndex),
-      createdAt: Value(note.createdAt),
-      updatedAt: Value(note.updatedAt),
+      id: Value(note.id), title: Value(note.title), content: Value(note.content),
+      imagePath: Value(note.imagePath), folder: Value(note.folder),
+      pinned: Value(note.pinned), deleted: Value(note.deleted), deletedAt: Value(note.deletedAt),
+      colorIndex: Value(note.colorIndex), createdAt: Value(note.createdAt), updatedAt: Value(note.updatedAt),
     );
   }
 
-  @override
-  Stream<List<NoteModel>> watchAllNotes() {
-    return _db.noteDao.watchAllNotes().map((r) => r.map(_toModel).toList());
-  }
+  @override Stream<List<NoteModel>> watchAllNotes() => _db.noteDao.watchAllNotes().map((r) => r.map(_toModel).toList());
+  @override Stream<List<NoteModel>> watchNotesByFolder(String f) => _db.noteDao.watchNotesByFolder(f).map((r) => r.map(_toModel).toList());
+  @override Stream<List<NoteModel>> watchTrash() => _db.noteDao.watchTrash().map((r) => r.map(_toModel).toList());
+  @override Future<List<String>> getFolders() => _db.noteDao.getFolders();
+  @override Stream<NoteModel?> watchNote(String id) => _db.noteDao.watchNote(id).map((r) => r == null ? null : _toModel(r));
+  @override Future<NoteModel?> getNote(String id) async { final r = await _db.noteDao.getNote(id); return r == null ? null : _toModel(r); }
 
   @override
-  Stream<List<NoteModel>> watchNotesByFolder(String folder) {
-    return _db.noteDao
-        .watchNotesByFolder(folder)
-        .map((r) => r.map(_toModel).toList());
-  }
-
-  @override
-  Future<List<String>> getFolders() => _db.noteDao.getFolders();
-
-  @override
-  Stream<NoteModel?> watchNote(String id) {
-    return _db.noteDao.watchNote(id).map((r) => r == null ? null : _toModel(r));
-  }
-
-  @override
-  Future<NoteModel?> getNote(String id) async {
-    final row = await _db.noteDao.getNote(id);
-    return row == null ? null : _toModel(row);
-  }
-
-  @override
-  Future<NoteModel> createNote({
-    String title = '',
-    String content = '',
-    String? imagePath,
-    String folder = '',
-    int colorIndex = 0,
-  }) async {
-    final note = NoteModel.create(
-      title: title,
-      content: content,
-      imagePath: imagePath,
-      folder: folder,
-      colorIndex: colorIndex,
-    );
+  Future<NoteModel> createNote({String title = '', String content = '', String? imagePath, String folder = '', int colorIndex = 0}) async {
+    final note = NoteModel.create(title: title, content: content, imagePath: imagePath, folder: folder, colorIndex: colorIndex);
     await _db.noteDao.insertNote(_toCompanion(note));
     return note;
   }
 
-  @override
-  Future<bool> updateNote(NoteModel note) async {
-    final updated = note.copyWith(updatedAt: DateTime.now());
-    return _db.noteDao.updateNote(updated.id, _toCompanion(updated));
-  }
-
-  @override
-  Future<bool> togglePin(String id, bool pinned) async {
-    return _db.noteDao.togglePin(id, pinned);
-  }
-
-  @override
-  Future<bool> deleteNote(String id) async {
-    return _db.noteDao.deleteNote(id);
-  }
+  @override Future<bool> updateNote(NoteModel note) async { final u = note.copyWith(updatedAt: DateTime.now()); return _db.noteDao.updateNote(u.id, _toCompanion(u)); }
+  @override Future<bool> togglePin(String id, bool v) => _db.noteDao.togglePin(id, v);
+  @override Future<bool> softDelete(String id) => _db.noteDao.softDelete(id);
+  @override Future<bool> restore(String id) => _db.noteDao.restore(id);
+  @override Future<bool> deleteForever(String id) => _db.noteDao.deleteForever(id);
 }

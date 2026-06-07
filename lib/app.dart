@@ -8,6 +8,7 @@ import 'screens/detail_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/folder_detail_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/trash_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/',
@@ -16,6 +17,7 @@ final _router = GoRouter(
     GoRoute(path: '/editor', builder: (_, __) => const EditorScreen()),
     GoRoute(path: '/editor/:id', builder: (_, state) => EditorScreen(id: state.pathParameters['id'])),
     GoRoute(path: '/note/:id', builder: (_, state) => DetailScreen(id: state.pathParameters['id']!)),
+    GoRoute(path: '/trash', builder: (_, __) => const TrashScreen()),
     GoRoute(
       path: '/folder/:folder',
       builder: (_, state) {

@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/theme.dart';
 import '../providers/bg_provider.dart';
+import '../providers/note_providers.dart';
 import '../providers/theme_provider.dart';
 import '../services/background_service.dart';
 import '../services/update_service.dart';
@@ -128,6 +130,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: ref.watch(darkModeProvider),
               onChanged: (_) => ref.read(darkModeProvider.notifier).toggle(),
             ),
+          ],
+        ),
+
+        // ═══ 回收站 ═══
+        _Section(
+          children: [
+            Consumer(builder: (context, ref, _) {
+              final trashAsync = ref.watch(trashProvider);
+              final count = trashAsync.maybeWhen(data: (l) => l.length, orElse: () => 0);
+              return ListTile(
+                leading: Icon(count > 0 ? Icons.delete : Icons.delete_outline, color: count > 0 ? AppColors.danger : AppColors.primary),
+                title: const Text('回收站'),
+                subtitle: Text(count > 0 ? '$count 条待清理' : '暂无已删除笔记',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withValues(alpha: 0.7))),
+                trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                onTap: () => context.push('/trash'),
+              );
+            }),
           ],
         ),
 

@@ -62,10 +62,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _tab,
         onTap: (i) => setState(() => _tab = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: '首页'),
-          BottomNavigationBarItem(icon: Icon(Icons.folder_outlined), label: '分类'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: '设置'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: '首页'),
+          const BottomNavigationBarItem(icon: Icon(Icons.folder_outlined), label: '分类'),
+          BottomNavigationBarItem(
+            icon: Consumer(builder: (context, ref, _) {
+              final trash = ref.watch(trashProvider);
+              final hasTrash = trash.maybeWhen(data: (l) => l.isNotEmpty, orElse: () => false);
+              return hasTrash
+                  ? Badge(child: const Icon(Icons.settings_outlined))
+                  : const Icon(Icons.settings_outlined);
+            }),
+            label: '设置',
+          ),
         ],
       ),
     );

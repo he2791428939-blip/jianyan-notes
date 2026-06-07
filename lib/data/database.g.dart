@@ -50,6 +50,22 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("pinned" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _deletedMeta =
+      const VerificationMeta('deleted');
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+      'deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _colorIndexMeta =
       const VerificationMeta('colorIndex');
   @override
@@ -82,6 +98,8 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         imagePath,
         folder,
         pinned,
+        deleted,
+        deletedAt,
         colorIndex,
         createdAt,
         updatedAt
@@ -121,6 +139,14 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       context.handle(_pinnedMeta,
           pinned.isAcceptableOrUnknown(data['pinned']!, _pinnedMeta));
     }
+    if (data.containsKey('deleted')) {
+      context.handle(_deletedMeta,
+          deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta));
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
     if (data.containsKey('color_index')) {
       context.handle(
           _colorIndexMeta,
@@ -156,6 +182,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
           .read(DriftSqlType.string, data['${effectivePrefix}folder'])!,
       pinned: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}pinned'])!,
+      deleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
       colorIndex: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}color_index'])!,
       createdAt: attachedDatabase.typeMapping
@@ -178,6 +208,8 @@ class Note extends DataClass implements Insertable<Note> {
   final String? imagePath;
   final String folder;
   final bool pinned;
+  final bool deleted;
+  final DateTime? deletedAt;
   final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -188,6 +220,8 @@ class Note extends DataClass implements Insertable<Note> {
       this.imagePath,
       required this.folder,
       required this.pinned,
+      required this.deleted,
+      this.deletedAt,
       required this.colorIndex,
       required this.createdAt,
       required this.updatedAt});
@@ -202,6 +236,10 @@ class Note extends DataClass implements Insertable<Note> {
     }
     map['folder'] = Variable<String>(folder);
     map['pinned'] = Variable<bool>(pinned);
+    map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['color_index'] = Variable<int>(colorIndex);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -218,6 +256,10 @@ class Note extends DataClass implements Insertable<Note> {
           : Value(imagePath),
       folder: Value(folder),
       pinned: Value(pinned),
+      deleted: Value(deleted),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       colorIndex: Value(colorIndex),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -234,6 +276,8 @@ class Note extends DataClass implements Insertable<Note> {
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       folder: serializer.fromJson<String>(json['folder']),
       pinned: serializer.fromJson<bool>(json['pinned']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       colorIndex: serializer.fromJson<int>(json['colorIndex']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -249,6 +293,8 @@ class Note extends DataClass implements Insertable<Note> {
       'imagePath': serializer.toJson<String?>(imagePath),
       'folder': serializer.toJson<String>(folder),
       'pinned': serializer.toJson<bool>(pinned),
+      'deleted': serializer.toJson<bool>(deleted),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'colorIndex': serializer.toJson<int>(colorIndex),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -262,6 +308,8 @@ class Note extends DataClass implements Insertable<Note> {
           Value<String?> imagePath = const Value.absent(),
           String? folder,
           bool? pinned,
+          bool? deleted,
+          Value<DateTime?> deletedAt = const Value.absent(),
           int? colorIndex,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
@@ -272,6 +320,8 @@ class Note extends DataClass implements Insertable<Note> {
         imagePath: imagePath.present ? imagePath.value : this.imagePath,
         folder: folder ?? this.folder,
         pinned: pinned ?? this.pinned,
+        deleted: deleted ?? this.deleted,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
         colorIndex: colorIndex ?? this.colorIndex,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -284,6 +334,8 @@ class Note extends DataClass implements Insertable<Note> {
       imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       folder: data.folder.present ? data.folder.value : this.folder,
       pinned: data.pinned.present ? data.pinned.value : this.pinned,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       colorIndex:
           data.colorIndex.present ? data.colorIndex.value : this.colorIndex,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -300,6 +352,8 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('imagePath: $imagePath, ')
           ..write('folder: $folder, ')
           ..write('pinned: $pinned, ')
+          ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -309,7 +363,7 @@ class Note extends DataClass implements Insertable<Note> {
 
   @override
   int get hashCode => Object.hash(id, title, content, imagePath, folder, pinned,
-      colorIndex, createdAt, updatedAt);
+      deleted, deletedAt, colorIndex, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -320,6 +374,8 @@ class Note extends DataClass implements Insertable<Note> {
           other.imagePath == this.imagePath &&
           other.folder == this.folder &&
           other.pinned == this.pinned &&
+          other.deleted == this.deleted &&
+          other.deletedAt == this.deletedAt &&
           other.colorIndex == this.colorIndex &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -332,6 +388,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String?> imagePath;
   final Value<String> folder;
   final Value<bool> pinned;
+  final Value<bool> deleted;
+  final Value<DateTime?> deletedAt;
   final Value<int> colorIndex;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -343,6 +401,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.imagePath = const Value.absent(),
     this.folder = const Value.absent(),
     this.pinned = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -355,6 +415,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.imagePath = const Value.absent(),
     this.folder = const Value.absent(),
     this.pinned = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -367,6 +429,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? imagePath,
     Expression<String>? folder,
     Expression<bool>? pinned,
+    Expression<bool>? deleted,
+    Expression<DateTime>? deletedAt,
     Expression<int>? colorIndex,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -379,6 +443,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (imagePath != null) 'image_path': imagePath,
       if (folder != null) 'folder': folder,
       if (pinned != null) 'pinned': pinned,
+      if (deleted != null) 'deleted': deleted,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (colorIndex != null) 'color_index': colorIndex,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -393,6 +459,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
       Value<String?>? imagePath,
       Value<String>? folder,
       Value<bool>? pinned,
+      Value<bool>? deleted,
+      Value<DateTime?>? deletedAt,
       Value<int>? colorIndex,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -404,6 +472,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
       imagePath: imagePath ?? this.imagePath,
       folder: folder ?? this.folder,
       pinned: pinned ?? this.pinned,
+      deleted: deleted ?? this.deleted,
+      deletedAt: deletedAt ?? this.deletedAt,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -432,6 +502,12 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (pinned.present) {
       map['pinned'] = Variable<bool>(pinned.value);
     }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (colorIndex.present) {
       map['color_index'] = Variable<int>(colorIndex.value);
     }
@@ -456,6 +532,8 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('imagePath: $imagePath, ')
           ..write('folder: $folder, ')
           ..write('pinned: $pinned, ')
+          ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -484,6 +562,8 @@ typedef $$NotesTableCreateCompanionBuilder = NotesCompanion Function({
   Value<String?> imagePath,
   Value<String> folder,
   Value<bool> pinned,
+  Value<bool> deleted,
+  Value<DateTime?> deletedAt,
   Value<int> colorIndex,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -496,6 +576,8 @@ typedef $$NotesTableUpdateCompanionBuilder = NotesCompanion Function({
   Value<String?> imagePath,
   Value<String> folder,
   Value<bool> pinned,
+  Value<bool> deleted,
+  Value<DateTime?> deletedAt,
   Value<int> colorIndex,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -527,6 +609,12 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
 
   ColumnFilters<bool> get pinned => $composableBuilder(
       column: $table.pinned, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+      column: $table.deleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => ColumnFilters(column));
@@ -565,6 +653,12 @@ class $$NotesTableOrderingComposer
   ColumnOrderings<bool> get pinned => $composableBuilder(
       column: $table.pinned, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+      column: $table.deleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => ColumnOrderings(column));
 
@@ -601,6 +695,12 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<bool> get pinned =>
       $composableBuilder(column: $table.pinned, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => column);
@@ -641,6 +741,8 @@ class $$NotesTableTableManager extends RootTableManager<
             Value<String?> imagePath = const Value.absent(),
             Value<String> folder = const Value.absent(),
             Value<bool> pinned = const Value.absent(),
+            Value<bool> deleted = const Value.absent(),
+            Value<DateTime?> deletedAt = const Value.absent(),
             Value<int> colorIndex = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -653,6 +755,8 @@ class $$NotesTableTableManager extends RootTableManager<
             imagePath: imagePath,
             folder: folder,
             pinned: pinned,
+            deleted: deleted,
+            deletedAt: deletedAt,
             colorIndex: colorIndex,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -665,6 +769,8 @@ class $$NotesTableTableManager extends RootTableManager<
             Value<String?> imagePath = const Value.absent(),
             Value<String> folder = const Value.absent(),
             Value<bool> pinned = const Value.absent(),
+            Value<bool> deleted = const Value.absent(),
+            Value<DateTime?> deletedAt = const Value.absent(),
             Value<int> colorIndex = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -677,6 +783,8 @@ class $$NotesTableTableManager extends RootTableManager<
             imagePath: imagePath,
             folder: folder,
             pinned: pinned,
+            deleted: deleted,
+            deletedAt: deletedAt,
             colorIndex: colorIndex,
             createdAt: createdAt,
             updatedAt: updatedAt,
