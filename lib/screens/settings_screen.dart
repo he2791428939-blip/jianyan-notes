@@ -33,11 +33,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _load() async {
     final v = await UpdateService.currentVersion();
-    final u = await UpdateService.getBaseUrl();
+    final u = await UpdateService.getCustomUrl();
     if (mounted) {
       setState(() {
         _currentVersion = v;
         _serverUrl = u;
+        if (u.isEmpty && UpdateService.defaultUrl.isNotEmpty) {
+          _serverUrl = UpdateService.defaultUrl;
+        }
         _urlCtrl.text = u;
       });
     }
@@ -45,7 +48,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _saveUrl() async {
     final url = _urlCtrl.text.trim();
-    await UpdateService.saveBaseUrl(url);
+    await UpdateService.saveCustomUrl(url);
     setState(() {
       _serverUrl = url;
       _urlEditing = false;
@@ -54,16 +57,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _checkUpdate() async {
     if (_checking) return;
-    final url = await UpdateService.getBaseUrl();
-    if (url.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请先配置更新服务器地址')),
-        );
-      }
-      return;
-    }
-
     setState(() => _checking = true);
     final (info, error) = await UpdateService.checkUpdate();
     if (mounted) {
@@ -225,7 +218,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ListTile(
               leading: const Icon(Icons.system_update, color: AppColors.primary),
               title: const Text('检查更新'),
-              subtitle: Text(_serverUrl.isEmpty ? '请先配置服务器地址' : _serverUrl,
+              subtitle: Text(
+                  _urlCtrl.text.isNotEmpty
+                      ? _serverUrl
+                      : _serverUrl.isNotEmpty
+                          ? '内置默认 · 无需配置'
+                          : '请先配置服务器地址',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6))),
               trailing: _checking
