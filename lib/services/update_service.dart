@@ -7,7 +7,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-/// 更新检查结果。
 class UpdateInfo {
   final String version;
   final int versionCode;
@@ -31,43 +30,64 @@ class UpdateInfo {
   }
 }
 
-/// 下载进度回调。
 typedef ProgressCallback = void Function(double progress);
 
-/// 更新服务 — 检查、下载、安装。
 class UpdateService {
-  // 发布时改成你自己的服务器地址
-  static const String _baseUrl = 'http://172.27.216.223:8888';
+  static const _key = 'jianyan_update_url';
 
-  /// 检查是否有新版本。返回 UpdateInfo 或 null（无更新）。
-  static Future<UpdateInfo?> checkUpdate() async {
+  /// 保存自定义服务器地址。
+  static Future<void> saveBaseUrl(String url) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$_key.json');
+    await file.writeAsString(jsonEncode({'url': url}));
+  }
+
+  /// 读取自定义服务器地址。
+  static Future<String> getBaseUrl() async {
     try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/$_key.json');
+      if (await file.exists()) {
+        final m = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        return m['url'] as String;
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  /// 检查是否有新版本。
+  /// 返回 `(UpdateInfo?, String?)` — info 有值就表示有新版本，error 有值表示失败原因。
+  static Future<(UpdateInfo?, String?)> checkUpdate() async {
+    try {
+      final baseUrl = await getBaseUrl();
+      if (baseUrl.isEmpty) {
+        return (null, '尚未配置更新服务器地址');
+      }
+
       final info = await PackageInfo.fromPlatform();
       final currentCode = int.tryParse(info.buildNumber) ?? 1;
 
-      final uri = Uri.parse('$_baseUrl/version.json');
-      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      final uri = Uri.parse('$baseUrl/version.json');
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
 
-      if (res.statusCode != 200) return null;
+      if (res.statusCode != 200) {
+        return (null, '服务器返回错误: ${res.statusCode}');
+      }
 
       final data = json.decode(res.body) as Map<String, dynamic>;
       final update = UpdateInfo.fromJson(data);
 
       if (update.versionCode > currentCode) {
-        return update;
+        return (update, null);
       }
-      return null;
+      return (null, null); // 无新版本
     } catch (e) {
       debugPrint('检查更新失败: $e');
-      return null;
+      return (null, '网络连接失败，请检查服务器地址和网络');
     }
   }
 
-  /// 下载 APK 并返回文件路径。
-  static Future<String> downloadApk(
-    String url,
-    ProgressCallback onProgress,
-  ) async {
+  static Future<String> downloadApk(String url, ProgressCallback onProgress) async {
     final dir = await getApplicationDocumentsDirectory();
     final filePath = p.join(dir.path, 'update.apk');
 
@@ -84,9 +104,7 @@ class UpdateService {
       await for (final chunk in response.stream) {
         sink.add(chunk);
         received += chunk.length;
-        if (total > 0) {
-          onProgress(received / total);
-        }
+        if (total > 0) onProgress(received / total);
       }
 
       await sink.close();
@@ -96,12 +114,10 @@ class UpdateService {
     }
   }
 
-  /// 打开 APK 文件触发安装。
   static Future<void> installApk(String filePath) async {
     await OpenFilex.open(filePath, type: 'application/vnd.android.package-archive');
   }
 
-  /// 获取当前版本号。
   static Future<String> currentVersion() async {
     final info = await PackageInfo.fromPlatform();
     return '${info.version} (${info.buildNumber})';

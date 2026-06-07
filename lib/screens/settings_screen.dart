@@ -18,54 +18,80 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _currentVersion = '加载中...';
+  String _serverUrl = '';
   bool _checking = false;
+  bool _urlEditing = false;
+  late final TextEditingController _urlCtrl;
 
   @override
   void initState() {
     super.initState();
-    _loadVersion();
+    _urlCtrl = TextEditingController();
+    _load();
   }
 
-  Future<void> _loadVersion() async {
+  Future<void> _load() async {
     final v = await UpdateService.currentVersion();
-    if (mounted) setState(() => _currentVersion = v);
+    final u = await UpdateService.getBaseUrl();
+    if (mounted) {
+      setState(() {
+        _currentVersion = v;
+        _serverUrl = u;
+        _urlCtrl.text = u;
+      });
+    }
+  }
+
+  Future<void> _saveUrl() async {
+    final url = _urlCtrl.text.trim();
+    await UpdateService.saveBaseUrl(url);
+    setState(() {
+      _serverUrl = url;
+      _urlEditing = false;
+    });
   }
 
   Future<void> _checkUpdate() async {
     if (_checking) return;
-    setState(() => _checking = true);
-    try {
-      final info = await UpdateService.checkUpdate();
+    final url = await UpdateService.getBaseUrl();
+    if (url.isEmpty) {
       if (mounted) {
-        setState(() => _checking = false);
-        if (info != null) {
-          showDialog(context: context, builder: (_) => UpdateDialog(updateInfo: info));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('已是最新版本')),
-          );
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _checking = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('检查更新失败，请检查网络连接')),
+          const SnackBar(content: Text('请先配置更新服务器地址')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _checking = true);
+    final (info, error) = await UpdateService.checkUpdate();
+    if (mounted) {
+      setState(() => _checking = false);
+      if (info != null) {
+        showDialog(context: context, builder: (_) => UpdateDialog(updateInfo: info));
+      } else if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已是最新版本')),
         );
       }
     }
   }
 
+  // ── 背景相关 ────────────────────────────────────────
+
   Future<void> _addCustomBg() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1920);
     if (picked == null) return;
-
     final bg = await ref.read(allBackgroundsProvider.notifier).addCustom(picked.path);
     await ref.read(backgroundProvider.notifier).select(bg);
   }
 
-  void _showDeleteDialog(AppBackground bg) {
+  void _showBgDeleteDialog(AppBackground bg) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -87,61 +113,90 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  // ── UI ──────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final allBgAsync = ref.watch(allBackgroundsProvider);
-    final currentBgAsync = ref.watch(backgroundProvider);
+    final curBgAsync = ref.watch(backgroundProvider);
 
     return ListView(
       children: [
         const SizedBox(height: 8),
-        // 背景选择
+
+        // ═══ 背景选择 ═══
         _Section(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.palette_outlined, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('首页背景', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                  const Spacer(),
-                  allBgAsync.when(
-                    data: (all) => Text(
-                      '${all.length} 种可选',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-                    ),
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                ],
-              ),
+              child: Row(children: [
+                const Icon(Icons.palette_outlined, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                const Text('首页背景', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                const Spacer(),
+                allBgAsync.when(
+                  data: (all) => Text('${all.length} 种可选',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ]),
             ),
             SizedBox(
               height: 80,
               child: allBgAsync.when(
-                data: (all) {
-                  return ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: [
-                      // 预设 + 自定义
-                      ...all.map((bg) => _buildBgTile(bg, currentBgAsync)),
-                      // "+" 添加按钮
-                      _buildAddTile(),
-                    ],
-                  );
-                },
-                loading: () => const Center(
-                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                data: (all) => ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: [
+                    ...all.map((bg) => _bgTile(bg, curBgAsync)),
+                    _addBgTile(),
+                  ],
                 ),
+                loading: () => const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
                 error: (_, __) => const SizedBox.shrink(),
               ),
             ),
             const SizedBox(height: 8),
           ],
         ),
-        // 版本信息
+
+        // ═══ 更新服务器 ═══
+        _Section(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(children: [
+                const Icon(Icons.dns_outlined, color: AppColors.primary, size: 20),
+                const SizedBox(width: 8),
+                const Text('更新服务器', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                const Spacer(),
+                if (_urlEditing)
+                  TextButton(onPressed: _saveUrl, child: const Text('保存'))
+                else
+                  TextButton(onPressed: () => setState(() => _urlEditing = true), child: const Text('编辑')),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: TextField(
+                controller: _urlCtrl,
+                readOnly: !_urlEditing,
+                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'http://你的IP:8888',
+                  hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  border: _urlEditing ? const OutlineInputBorder() : InputBorder.none,
+                  contentPadding: _urlEditing ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10) : EdgeInsets.zero,
+                  filled: _urlEditing,
+                  fillColor: AppColors.surface,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // ═══ 版本 + 更新 ═══
         _Section(
           children: [
             ListTile(
@@ -149,15 +204,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('当前版本'),
               subtitle: Text(_currentVersion),
             ),
-          ],
-        ),
-        // 更新
-        _Section(
-          children: [
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.system_update, color: AppColors.primary),
               title: const Text('检查更新'),
-              subtitle: const Text('检查并下载最新版本'),
+              subtitle: Text(_serverUrl.isEmpty ? '请先配置服务器地址' : _serverUrl,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.6))),
               trailing: _checking
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.chevron_right, color: AppColors.textSecondary),
@@ -165,58 +218,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
         ),
+
         const SizedBox(height: 24),
-        Center(
-          child: Text('简言笔记 — 简洁记录每一天',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withValues(alpha: 0.5))),
-        ),
+        Center(child: Text('简言笔记 — 简洁记录每一天',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary.withValues(alpha: 0.5)))),
         const SizedBox(height: 32),
       ],
     );
   }
 
-  Widget _buildBgTile(AppBackground bg, AsyncValue<AppBackground> currentAsync) {
-    final selected = currentAsync.maybeWhen(data: (b) => b.id == bg.id, orElse: () => false);
-
-    Widget tile = GestureDetector(
-      onTap: () => ref.read(backgroundProvider.notifier).select(bg),
-      onLongPress: bg.isPreset ? null : () => _showDeleteDialog(bg),
-      child: Container(
-        width: 64,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.15),
-            width: selected ? 2.5 : 1,
+  Widget _bgTile(AppBackground bg, AsyncValue<AppBackground> curAsync) {
+    final sel = curAsync.maybeWhen(data: (b) => b.id == bg.id, orElse: () => false);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: GestureDetector(
+        onTap: () => ref.read(backgroundProvider.notifier).select(bg),
+        onLongPress: bg.isPreset ? null : () => _showBgDeleteDialog(bg),
+        child: Container(
+          width: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: sel ? AppColors.primary : AppColors.textSecondary.withValues(alpha: 0.15),
+              width: sel ? 2.5 : 1,
+            ),
+            gradient: bg.gradient != null
+                ? LinearGradient(colors: bg.gradient!, begin: Alignment.topCenter, end: Alignment.bottomCenter)
+                : null,
+            color: bg.color,
+            image: bg.imagePath != null
+                ? DecorationImage(image: FileImage(File(bg.imagePath!)), fit: BoxFit.cover)
+                : null,
           ),
-          gradient: bg.gradient != null
-              ? LinearGradient(colors: bg.gradient!, begin: Alignment.topCenter, end: Alignment.bottomCenter)
-              : null,
-          color: bg.color,
-          image: bg.imagePath != null
-              ? DecorationImage(image: FileImage(File(bg.imagePath!)), fit: BoxFit.cover)
-              : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (selected)
-              const Icon(Icons.check_circle, color: AppColors.primary, size: 22)
-            else
-              const SizedBox(width: 22, height: 22),
-          ],
+          child: Center(
+            child: sel
+                ? const Icon(Icons.check_circle, color: AppColors.primary, size: 22)
+                : const SizedBox.shrink(),
+          ),
         ),
       ),
     );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: tile,
-    );
   }
 
-  Widget _buildAddTile() {
+  Widget _addBgTile() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: GestureDetector(
@@ -225,7 +269,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           width: 64,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.3), width: 1.5, style: BorderStyle.solid),
+            border: Border.all(color: AppColors.textSecondary.withValues(alpha: 0.3), width: 1.5),
             color: AppColors.surface,
           ),
           child: Column(
@@ -240,12 +284,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _urlCtrl.dispose();
+    super.dispose();
+  }
 }
 
 class _Section extends StatelessWidget {
   final List<Widget> children;
   const _Section({required this.children});
-
   @override
   Widget build(BuildContext context) {
     return Card(
