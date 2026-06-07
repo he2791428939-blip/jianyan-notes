@@ -11,6 +11,7 @@ class Notes extends Table {
   TextColumn get title => text().withDefault(const Constant(''))();
   TextColumn get content => text().withDefault(const Constant(''))();
   TextColumn get imagePath => text().nullable()();
+  TextColumn get folder => text().withDefault(const Constant(''))();
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -24,12 +25,17 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(notes, notes.folder);
+          }
         },
       );
 }
@@ -43,6 +49,26 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
 
   Stream<List<Note>> watchAllNotes() =>
       (select(notes)..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).watch();
+
+  Stream<List<Note>> watchNotesByFolder(String folder) =>
+      (select(notes)
+            ..where((t) => t.folder.equals(folder))
+            ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+          .watch();
+
+  Future<List<String>> getFolders() async {
+    final query = selectOnly(notes, distinct: true)
+      ..addColumns([notes.folder])
+      ..where(notes.folder.isNotValue(''));
+    final rows = await query.get();
+    final folders = <String>[];
+    for (final r in rows) {
+      final f = r.read(notes.folder);
+      if (f != null && f.isNotEmpty) folders.add(f);
+    }
+    folders.sort();
+    return folders;
+  }
 
   Future<Note?> getNote(String id) =>
       (select(notes)..where((t) => t.id.equals(id))).getSingleOrNull();

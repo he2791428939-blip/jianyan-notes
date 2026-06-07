@@ -4,31 +4,37 @@ import '../data/local_note_repository.dart';
 import '../data/note_repository.dart';
 import '../models/note_model.dart';
 
-/// 数据库单例。
-final databaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
-});
+final databaseProvider = Provider<AppDatabase>((ref) => AppDatabase());
 
-/// Repository 注入 — 未来换 Supabase 只需改这里。
 final noteRepositoryProvider = Provider<NoteRepository>((ref) {
-  final db = ref.watch(databaseProvider);
-  return LocalNoteRepository(db);
+  return LocalNoteRepository(ref.watch(databaseProvider));
 });
 
-/// 笔记列表（响应式流）。
+/// 全部笔记。
 final notesProvider = StreamProvider<List<NoteModel>>((ref) {
-  final repo = ref.watch(noteRepositoryProvider);
-  return repo.watchAllNotes();
+  return ref.watch(noteRepositoryProvider).watchAllNotes();
 });
 
-/// 单条笔记（按 ID）。
-final noteProvider =
-    StreamProvider.family<NoteModel?, String>((ref, id) {
-  final repo = ref.watch(noteRepositoryProvider);
-  return repo.watchNote(id);
+/// 按分类过滤的笔记。
+final notesByFolderProvider =
+    StreamProvider.family<List<NoteModel>, String>((ref, folder) {
+  return ref.watch(noteRepositoryProvider).watchNotesByFolder(folder);
 });
 
-/// CRUD 操作 Notifier。
+/// 分类列表（一次性加载）。
+final foldersProvider = FutureProvider<List<String>>((ref) {
+  return ref.watch(noteRepositoryProvider).getFolders();
+});
+
+/// 当前选中的分类（首页底栏切换用）。
+final selectedFolderProvider = StateProvider<String>((ref) => '');
+
+/// 单条笔记。
+final noteProvider = StreamProvider.family<NoteModel?, String>((ref, id) {
+  return ref.watch(noteRepositoryProvider).watchNote(id);
+});
+
+/// CRUD 操作。
 class NoteActionsNotifier extends Notifier<void> {
   NoteRepository get _repo => ref.read(noteRepositoryProvider);
 
@@ -39,6 +45,7 @@ class NoteActionsNotifier extends Notifier<void> {
     String title = '',
     String content = '',
     String? imagePath,
+    String folder = '',
   }) async {
     final colors = [0, 1, 2, 3, 4, 5];
     final colorIndex = (title.hashCode % colors.length).abs();
@@ -46,21 +53,24 @@ class NoteActionsNotifier extends Notifier<void> {
       title: title,
       content: content,
       imagePath: imagePath,
+      folder: folder,
       colorIndex: colorIndex,
     );
+    ref.invalidate(foldersProvider);
     return note.id;
   }
 
   Future<void> update(NoteModel note) async {
     await _repo.updateNote(note);
+    ref.invalidate(foldersProvider);
   }
 
   Future<void> delete(String id) async {
     await _repo.deleteNote(id);
+    ref.invalidate(foldersProvider);
   }
 }
 
-final noteActionsProvider =
-    NotifierProvider<NoteActionsNotifier, void>(() {
+final noteActionsProvider = NotifierProvider<NoteActionsNotifier, void>(() {
   return NoteActionsNotifier();
 });

@@ -11,10 +11,12 @@ import '../providers/note_providers.dart';
 import '../widgets/note_toolbar.dart';
 
 /// 编辑页面 — 支持新建和编辑两种模式。
+/// 返回时自动保存。
 class EditorScreen extends ConsumerStatefulWidget {
   final String? id;
+  final String? initialFolder;
 
-  const EditorScreen({super.key, this.id});
+  const EditorScreen({super.key, this.id, this.initialFolder});
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -25,9 +27,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   late final TextEditingController _contentController;
   final _picker = ImagePicker();
   String? _imagePath;
+  String _folder = '';
   bool _isSaving = false;
-  bool _hasChanges = false;
   NoteModel? _existingNote;
+  bool _didSave = false;
 
   bool get _isEditing => widget.id != null;
 
@@ -36,17 +39,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     super.initState();
     _titleController = TextEditingController();
     _contentController = TextEditingController();
-    _titleController.addListener(_onChanged);
-    _contentController.addListener(_onChanged);
+    _folder = widget.initialFolder ?? '';
 
     if (_isEditing) {
       _loadNote();
-    }
-  }
-
-  void _onChanged() {
-    if (!_hasChanges) {
-      setState(() => _hasChanges = true);
     }
   }
 
@@ -59,14 +55,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           _titleController.text = note.title;
           _contentController.text = note.content;
           _imagePath = note.imagePath;
-          _hasChanges = false;
+          _folder = note.folder;
         });
       }
     });
   }
 
   Future<void> _save() async {
-    if (_isSaving) return;
+    if (_isSaving || _didSave) return;
     setState(() => _isSaving = true);
 
     try {
@@ -76,6 +72,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
           imagePath: _imagePath,
+          folder: _folder,
           clearImage: _imagePath == null,
         );
         await actions.update(updated);
@@ -84,11 +81,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
           imagePath: _imagePath,
+          folder: _folder,
         );
       }
-      if (mounted) {
-        context.pop();
-      }
+      _didSave = true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -97,6 +93,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  /// 返回上一页：先保存，再 pop。
+  Future<void> _goBack() async {
+    await _save();
+    if (mounted) {
+      context.pop();
     }
   }
 
@@ -134,33 +138,76 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final savedFile =
         await File(picked.path).copy(p.join(imageDir.path, fileName));
 
-    setState(() {
-      _imagePath = savedFile.path;
-      _hasChanges = true;
-    });
+    setState(() => _imagePath = savedFile.path);
   }
 
-  Future<bool> _onWillPop() async {
-    if (!_hasChanges) return true;
-    final result = await showDialog<bool>(
+  Widget _buildFolderRow() {
+    final foldersAsync = ref.watch(foldersProvider);
+    final folders = foldersAsync.maybeWhen(data: (f) => f, orElse: () => <String>[]);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: SizedBox(
+        height: 36,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            // "无分类" chip
+            _FolderChip(
+              label: '无分类',
+              selected: _folder.isEmpty,
+              onTap: () => setState(() => _folder = ''),
+            ),
+            ...folders.map((f) => _FolderChip(
+                  label: f,
+                  selected: _folder == f,
+                  onTap: () => setState(() => _folder = f),
+                )),
+            // "新建" chip
+            _FolderChip(
+              label: '+ 新建',
+              selected: false,
+              isAdd: true,
+              onTap: () => _showNewFolderDialog(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNewFolderDialog() {
+    final ctrl = TextEditingController();
+    showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('放弃编辑？'),
-        content: const Text('你有未保存的修改，确定要离开吗？'),
+        title: const Text('新建分类'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '输入分类名称',
+            border: OutlineInputBorder(),
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('继续编辑'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('放弃'),
+            onPressed: () {
+              final name = ctrl.text.trim();
+              if (name.isNotEmpty) {
+                setState(() => _folder = name);
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('确定'),
           ),
         ],
       ),
     );
-    return result ?? false;
   }
 
   @override
@@ -173,118 +220,162 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !_hasChanges,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final shouldPop = await _onWillPop();
-        if (shouldPop && context.mounted) {
-          context.pop();
-        }
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack();
       },
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () async {
-              final shouldPop = await _onWillPop();
-              if (shouldPop && context.mounted) {
-                context.pop();
-              }
-            },
-          ),
-          title: Text(_isEditing ? '编辑笔记' : '新建笔记'),
-          actions: [
-            _isSaving
-                ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: _hasChanges ? _save : null,
-                    child: Text(
-                      '保存',
-                      style: TextStyle(
-                        color: _hasChanges
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-          ],
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _goBack,
         ),
-        body: Column(
-          children: [
-            if (_imagePath != null)
-              Stack(
-                children: [
-                  Container(
-                    height: 180,
-                    width: double.infinity,
-                    color: AppColors.surface,
-                    child: Image.file(
-                      File(_imagePath!),
-                      fit: BoxFit.cover,
+        title: Text(_isEditing ? '编辑笔记' : '新建笔记'),
+        actions: [
+          _isSaving
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : TextButton(
+                  onPressed: _goBack,
+                  child: const Text(
+                    '保存',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor:
-                          AppColors.textPrimary.withValues(alpha: 0.6),
-                      child: IconButton(
-                        icon: const Icon(Icons.close,
-                            size: 16, color: Colors.white),
-                        onPressed: () {
-                          setState(() {
-                            _imagePath = null;
-                            _hasChanges = true;
-                          });
-                        },
-                      ),
+                ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // 分类选择器
+          _buildFolderRow(),
+          if (_imagePath != null)
+            Stack(
+              children: [
+                Container(
+                  height: 180,
+                  width: double.infinity,
+                  color: AppColors.surface,
+                  child: Image.file(
+                    File(_imagePath!),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor:
+                        AppColors.textPrimary.withValues(alpha: 0.6),
+                    child: IconButton(
+                      icon: const Icon(Icons.close,
+                          size: 16, color: Colors.white),
+                      onPressed: () {
+                        setState(() => _imagePath = null);
+                      },
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: TextField(
+              controller: _titleController,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              decoration: const InputDecoration(hintText: '标题...'),
+              textInputAction: TextInputAction.next,
+            ),
+          ),
+          const Divider(height: 1, indent: 20, endIndent: 20),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: TextField(
-                controller: _titleController,
+                controller: _contentController,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
                   color: AppColors.textPrimary,
+                  height: 1.6,
                 ),
-                decoration: const InputDecoration(hintText: '标题...'),
-                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(hintText: '开始写笔记...'),
+                maxLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
               ),
             ),
-            const Divider(height: 1, indent: 20, endIndent: 20),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                child: TextField(
-                  controller: _contentController,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppColors.textPrimary,
-                    height: 1.6,
-                  ),
-                  decoration: const InputDecoration(hintText: '开始写笔记...'),
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                ),
-              ),
+          ),
+          NoteToolbar(onPickImage: _pickImage),
+        ],
+      ),
+      ),
+    );
+  }
+}
+
+// ── 分类标签 ──────────────────────────────────────────
+
+class _FolderChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool isAdd;
+  final VoidCallback onTap;
+
+  const _FolderChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.isAdd = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isAdd
+                ? Colors.transparent
+                : selected
+                    ? AppColors.primary
+                    : AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isAdd
+                  ? AppColors.textSecondary.withValues(alpha: 0.4)
+                  : selected
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withValues(alpha: 0.2),
             ),
-            NoteToolbar(onPickImage: _pickImage),
-          ],
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: selected
+                  ? Colors.white
+                  : isAdd
+                      ? AppColors.primary
+                      : AppColors.textPrimary,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
         ),
       ),
     );

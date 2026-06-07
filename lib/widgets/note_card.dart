@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../models/note_model.dart';
 
-/// 网格卡片组件 — 用于首页笔记列表。
+/// 网格卡片 — 颜色块/图片 + 标题 + 正文预览 + 时间戳。
 class NoteCard extends StatelessWidget {
   final NoteModel note;
   final VoidCallback onTap;
@@ -30,35 +31,57 @@ class NoteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 上半部分 — 颜色块或图片预览
             Expanded(
-              flex: 3,
+              flex: 2,
               child: hasImage
                   ? Image.file(
                       File(note.imagePath!),
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => _ColorBlock(
-                        bgColor: bgColor,
-                        iconColor: iconColor,
-                        title: note.title,
-                      ),
+                        bgColor: bgColor, iconColor: iconColor, title: note.title),
                     )
                   : _ColorBlock(
-                      bgColor: bgColor,
-                      iconColor: iconColor,
-                      title: note.title,
-                    ),
+                      bgColor: bgColor, iconColor: iconColor, title: note.title),
             ),
+            // 标题
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
               child: Text(
                 note.title.isEmpty ? '无标题' : note.title,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
-                  height: 1.3,
+                ),
+              ),
+            ),
+            // 正文预览
+            if (note.content.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
+                child: Text(
+                  note.content,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.85),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            const Spacer(),
+            // 时间戳
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(
+                _formatTime(note.updatedAt),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary.withValues(alpha: 0.6),
                 ),
               ),
             ),
@@ -66,6 +89,16 @@ class NoteCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime t) {
+    final now = DateTime.now();
+    final diff = now.difference(t);
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+    if (diff.inHours < 24) return '${diff.inHours}小时前';
+    if (diff.inDays < 7) return '${diff.inDays}天前';
+    return DateFormat('M月d日').format(t);
   }
 }
 

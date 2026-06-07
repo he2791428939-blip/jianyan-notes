@@ -14,6 +14,7 @@ class LocalNoteRepository implements NoteRepository {
       title: row.title,
       content: row.content,
       imagePath: row.imagePath,
+      folder: row.folder,
       colorIndex: row.colorIndex,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -26,6 +27,7 @@ class LocalNoteRepository implements NoteRepository {
       title: Value(note.title),
       content: Value(note.content),
       imagePath: Value(note.imagePath),
+      folder: Value(note.folder),
       colorIndex: Value(note.colorIndex),
       createdAt: Value(note.createdAt),
       updatedAt: Value(note.updatedAt),
@@ -34,16 +36,22 @@ class LocalNoteRepository implements NoteRepository {
 
   @override
   Stream<List<NoteModel>> watchAllNotes() {
-    return _db.noteDao.watchAllNotes().map(
-          (rows) => rows.map(_toModel).toList(),
-        );
+    return _db.noteDao.watchAllNotes().map((r) => r.map(_toModel).toList());
   }
 
   @override
+  Stream<List<NoteModel>> watchNotesByFolder(String folder) {
+    return _db.noteDao
+        .watchNotesByFolder(folder)
+        .map((r) => r.map(_toModel).toList());
+  }
+
+  @override
+  Future<List<String>> getFolders() => _db.noteDao.getFolders();
+
+  @override
   Stream<NoteModel?> watchNote(String id) {
-    return _db.noteDao.watchNote(id).map(
-          (row) => row == null ? null : _toModel(row),
-        );
+    return _db.noteDao.watchNote(id).map((r) => r == null ? null : _toModel(r));
   }
 
   @override
@@ -57,12 +65,14 @@ class LocalNoteRepository implements NoteRepository {
     String title = '',
     String content = '',
     String? imagePath,
+    String folder = '',
     int colorIndex = 0,
   }) async {
     final note = NoteModel.create(
       title: title,
       content: content,
       imagePath: imagePath,
+      folder: folder,
       colorIndex: colorIndex,
     );
     await _db.noteDao.insertNote(_toCompanion(note));

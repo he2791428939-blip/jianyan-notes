@@ -33,7 +33,7 @@ class DetailScreen extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.edit_outlined),
                 tooltip: '编辑',
-                onPressed: () => context.go('/editor/${n.id}'),
+                onPressed: () => context.push('/editor/${n.id}'),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),

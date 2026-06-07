@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme.dart';
 import 'screens/detail_screen.dart';
 import 'screens/editor_screen.dart';
+import 'screens/folder_detail_screen.dart';
 import 'screens/home_screen.dart';
 
 final _router = GoRouter(
@@ -25,6 +27,12 @@ final _router = GoRouter(
       builder: (_, state) =>
           DetailScreen(id: state.pathParameters['id']!),
     ),
+    GoRoute(
+      path: '/folder/:folder',
+      builder: (_, state) => FolderDetailScreen(
+        folder: Uri.decodeComponent(state.pathParameters['folder']!),
+      ),
+    ),
   ],
 );
 
@@ -40,10 +48,11 @@ class JianyanApp extends StatelessWidget {
       theme: AppTheme.light,
       routerConfig: _router,
       locale: const Locale('zh', 'CN'),
-      supportedLocales: const [Locale('zh', 'CN')],
+      supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [
-        DefaultMaterialLocalizations.delegate,
-        DefaultWidgetsLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
       ],
     );
   }

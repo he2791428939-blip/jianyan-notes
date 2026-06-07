@@ -1,9 +1,10 @@
-/// 笔记领域模型 — 纯 Dart 类，用于 UI 层和 Repository 之间传递数据。
+/// 笔记领域模型。
 class NoteModel {
   final String id;
   final String title;
   final String content;
   final String? imagePath;
+  final String folder;
   final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -13,6 +14,7 @@ class NoteModel {
     required this.title,
     required this.content,
     this.imagePath,
+    required this.folder,
     required this.colorIndex,
     required this.createdAt,
     required this.updatedAt,
@@ -24,6 +26,7 @@ class NoteModel {
     String? content,
     String? imagePath,
     bool clearImage = false,
+    String? folder,
     int? colorIndex,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -33,6 +36,7 @@ class NoteModel {
       title: title ?? this.title,
       content: content ?? this.content,
       imagePath: clearImage ? null : (imagePath ?? this.imagePath),
+      folder: folder ?? this.folder,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -43,6 +47,7 @@ class NoteModel {
     String title = '',
     String content = '',
     String? imagePath,
+    String folder = '',
     int colorIndex = 0,
   }) {
     final now = DateTime.now();
@@ -51,6 +56,7 @@ class NoteModel {
       title: title,
       content: content,
       imagePath: imagePath,
+      folder: folder,
       colorIndex: colorIndex,
       createdAt: now,
       updatedAt: now,

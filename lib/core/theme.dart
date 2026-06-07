@@ -40,6 +40,13 @@ class AppTheme {
   static ThemeData get light {
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Roboto',
+      fontFamilyFallback: const [
+        'Noto Sans SC',
+        'Noto Sans CJK SC',
+        'Droid Sans Fallback',
+        'sans-serif',
+      ],
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         primary: AppColors.primary,
