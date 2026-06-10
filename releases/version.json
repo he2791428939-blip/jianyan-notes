@@ -1,1 +1,1 @@
-{"version": "1.3.1", "versionCode": 10, "url": "https://cdn.jsdelivr.net/gh/he2791428939-blip/jianyan-notes@main/releases/app-arm64-v8a-release.apk", "notes": "🐛 修复：切换背景时所有页面统一生效\n🐛 修复：深色模式切回时背景不消失"}
+{"version": "1.3.2", "versionCode": 11, "url": "https://cdn.jsdelivr.net/gh/he2791428939-blip/jianyan-notes@main/releases/app-arm64-v8a-release.apk", "notes": "版本号递增以触发更新检测"}
