@@ -24,7 +24,8 @@ class FoldersScreen extends ConsumerWidget {
         );
 
         return Scaffold(
-          appBar: AppBar(title: const Text('分类管理')),
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(title: const Text('分类管理'), backgroundColor: Colors.transparent),
           body: folders.isEmpty && uncategorized == allNotes.length
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.folder_open, size: 56, color: textSec.withValues(alpha: 0.4)),

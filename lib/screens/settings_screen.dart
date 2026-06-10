@@ -111,7 +111,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final allBgAsync = ref.watch(allBackgroundsProvider);
-    final curBgAsync = ref.watch(backgroundProvider);
+    final curBg = ref.watch(backgroundProvider);
 
     return ListView(
       children: [
@@ -176,7 +176,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   children: [
-                    ...all.map((bg) => _bgTile(bg, curBgAsync)),
+                    ...all.map((bg) => _bgTile(bg, curBg)),
                     _addBgTile(),
                   ],
                 ),
@@ -259,8 +259,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _bgTile(AppBackground bg, AsyncValue<AppBackground> curAsync) {
-    final sel = curAsync.maybeWhen(data: (b) => b.id == bg.id, orElse: () => false);
+  Widget _bgTile(AppBackground bg, AppBackground current) {
+    final sel = current.id == bg.id;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: GestureDetector(

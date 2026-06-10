@@ -26,21 +26,27 @@ class AllBackgroundsNotifier extends AsyncNotifier<List<AppBackground>> {
   }
 }
 
-/// 当前选中的背景。
-final backgroundProvider = AsyncNotifierProvider<CurrentBgNotifier, AppBackground>(CurrentBgNotifier.new);
+/// 当前选中的背景 — 用 StateNotifier 避免 async 加载闪烁。
+final backgroundProvider = NotifierProvider<CurrentBgNotifier, AppBackground>(CurrentBgNotifier.new);
 
-class CurrentBgNotifier extends AsyncNotifier<AppBackground> {
+class CurrentBgNotifier extends Notifier<AppBackground> {
   @override
-  Future<AppBackground> build() async {
+  AppBackground build() {
+    // 同步返回默认值，异步加载真实值
+    _load();
+    return AppBackground.presets[0];
+  }
+
+  Future<void> _load() async {
     final id = await AppBackground.loadSelection();
-    // 在所有背景（预设+自定义）中查找
     final customs = await AppBackground.loadCustom();
     final all = [...AppBackground.presets, ...customs];
-    return all.firstWhere((b) => b.id == id, orElse: () => AppBackground.presets[0]);
+    final bg = all.firstWhere((b) => b.id == id, orElse: () => AppBackground.presets[0]);
+    state = bg;
   }
 
   Future<void> select(AppBackground bg) async {
     await AppBackground.saveSelection(bg.id);
-    state = AsyncData(bg);
+    state = bg;
   }
 }

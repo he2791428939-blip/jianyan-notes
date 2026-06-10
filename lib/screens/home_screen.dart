@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme.dart';
 import '../models/note_model.dart';
+import '../providers/bg_provider.dart';
 import '../providers/note_providers.dart';
 import '../widgets/note_card.dart';
 import 'folders_screen.dart';
@@ -36,11 +37,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final body = IndexedStack(index: _tab, children: pages);
 
-    return Scaffold(
+    final scaffold = Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: _tab == 2
-          ? AppBar(title: const Text('设置'))
+          ? AppBar(title: const Text('设置'), backgroundColor: Colors.transparent)
           : AppBar(
               title: const Text('我的笔记'),
+              backgroundColor: Colors.transparent,
               actions: [
                 if (_tab == 0)
                   IconButton(icon: const Icon(Icons.search), tooltip: '搜索', onPressed: () {
@@ -78,6 +81,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
     );
+
+    final bgAsync = ref.watch(backgroundProvider);
+    return bgAsync.build(child: scaffold);
   }
 
   Widget _buildNotesGrid(List<NoteModel> notes, bool dark, Color text, Color textSec) {
