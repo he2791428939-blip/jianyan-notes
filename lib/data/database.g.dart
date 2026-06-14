@@ -66,6 +66,11 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
   late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
       'deleted_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _colorIndexMeta =
       const VerificationMeta('colorIndex');
   @override
@@ -100,6 +105,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         pinned,
         deleted,
         deletedAt,
+        userId,
         colorIndex,
         createdAt,
         updatedAt
@@ -147,6 +153,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
       context.handle(_deletedAtMeta,
           deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
     }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    }
     if (data.containsKey('color_index')) {
       context.handle(
           _colorIndexMeta,
@@ -186,6 +196,8 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
           .read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
       deletedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id']),
       colorIndex: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}color_index'])!,
       createdAt: attachedDatabase.typeMapping
@@ -210,6 +222,7 @@ class Note extends DataClass implements Insertable<Note> {
   final bool pinned;
   final bool deleted;
   final DateTime? deletedAt;
+  final String? userId;
   final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -222,6 +235,7 @@ class Note extends DataClass implements Insertable<Note> {
       required this.pinned,
       required this.deleted,
       this.deletedAt,
+      this.userId,
       required this.colorIndex,
       required this.createdAt,
       required this.updatedAt});
@@ -239,6 +253,9 @@ class Note extends DataClass implements Insertable<Note> {
     map['deleted'] = Variable<bool>(deleted);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || userId != null) {
+      map['user_id'] = Variable<String>(userId);
     }
     map['color_index'] = Variable<int>(colorIndex);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -260,6 +277,8 @@ class Note extends DataClass implements Insertable<Note> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      userId:
+          userId == null && nullToAbsent ? const Value.absent() : Value(userId),
       colorIndex: Value(colorIndex),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -278,6 +297,7 @@ class Note extends DataClass implements Insertable<Note> {
       pinned: serializer.fromJson<bool>(json['pinned']),
       deleted: serializer.fromJson<bool>(json['deleted']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      userId: serializer.fromJson<String?>(json['userId']),
       colorIndex: serializer.fromJson<int>(json['colorIndex']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -295,6 +315,7 @@ class Note extends DataClass implements Insertable<Note> {
       'pinned': serializer.toJson<bool>(pinned),
       'deleted': serializer.toJson<bool>(deleted),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'userId': serializer.toJson<String?>(userId),
       'colorIndex': serializer.toJson<int>(colorIndex),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -310,6 +331,7 @@ class Note extends DataClass implements Insertable<Note> {
           bool? pinned,
           bool? deleted,
           Value<DateTime?> deletedAt = const Value.absent(),
+          Value<String?> userId = const Value.absent(),
           int? colorIndex,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
@@ -322,6 +344,7 @@ class Note extends DataClass implements Insertable<Note> {
         pinned: pinned ?? this.pinned,
         deleted: deleted ?? this.deleted,
         deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        userId: userId.present ? userId.value : this.userId,
         colorIndex: colorIndex ?? this.colorIndex,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -336,6 +359,7 @@ class Note extends DataClass implements Insertable<Note> {
       pinned: data.pinned.present ? data.pinned.value : this.pinned,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      userId: data.userId.present ? data.userId.value : this.userId,
       colorIndex:
           data.colorIndex.present ? data.colorIndex.value : this.colorIndex,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -354,6 +378,7 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('pinned: $pinned, ')
           ..write('deleted: $deleted, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('userId: $userId, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -363,7 +388,7 @@ class Note extends DataClass implements Insertable<Note> {
 
   @override
   int get hashCode => Object.hash(id, title, content, imagePath, folder, pinned,
-      deleted, deletedAt, colorIndex, createdAt, updatedAt);
+      deleted, deletedAt, userId, colorIndex, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -376,6 +401,7 @@ class Note extends DataClass implements Insertable<Note> {
           other.pinned == this.pinned &&
           other.deleted == this.deleted &&
           other.deletedAt == this.deletedAt &&
+          other.userId == this.userId &&
           other.colorIndex == this.colorIndex &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -390,6 +416,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<bool> pinned;
   final Value<bool> deleted;
   final Value<DateTime?> deletedAt;
+  final Value<String?> userId;
   final Value<int> colorIndex;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -403,6 +430,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.pinned = const Value.absent(),
     this.deleted = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.userId = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -417,6 +445,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.pinned = const Value.absent(),
     this.deleted = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.userId = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -431,6 +460,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<bool>? pinned,
     Expression<bool>? deleted,
     Expression<DateTime>? deletedAt,
+    Expression<String>? userId,
     Expression<int>? colorIndex,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -445,6 +475,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (pinned != null) 'pinned': pinned,
       if (deleted != null) 'deleted': deleted,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (userId != null) 'user_id': userId,
       if (colorIndex != null) 'color_index': colorIndex,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -461,6 +492,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       Value<bool>? pinned,
       Value<bool>? deleted,
       Value<DateTime?>? deletedAt,
+      Value<String?>? userId,
       Value<int>? colorIndex,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -474,6 +506,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       pinned: pinned ?? this.pinned,
       deleted: deleted ?? this.deleted,
       deletedAt: deletedAt ?? this.deletedAt,
+      userId: userId ?? this.userId,
       colorIndex: colorIndex ?? this.colorIndex,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -508,6 +541,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
     if (colorIndex.present) {
       map['color_index'] = Variable<int>(colorIndex.value);
     }
@@ -534,6 +570,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('pinned: $pinned, ')
           ..write('deleted: $deleted, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('userId: $userId, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -564,6 +601,7 @@ typedef $$NotesTableCreateCompanionBuilder = NotesCompanion Function({
   Value<bool> pinned,
   Value<bool> deleted,
   Value<DateTime?> deletedAt,
+  Value<String?> userId,
   Value<int> colorIndex,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -578,6 +616,7 @@ typedef $$NotesTableUpdateCompanionBuilder = NotesCompanion Function({
   Value<bool> pinned,
   Value<bool> deleted,
   Value<DateTime?> deletedAt,
+  Value<String?> userId,
   Value<int> colorIndex,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -615,6 +654,9 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
       column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => ColumnFilters(column));
@@ -659,6 +701,9 @@ class $$NotesTableOrderingComposer
   ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
       column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => ColumnOrderings(column));
 
@@ -702,6 +747,9 @@ class $$NotesTableAnnotationComposer
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
   GeneratedColumn<int> get colorIndex => $composableBuilder(
       column: $table.colorIndex, builder: (column) => column);
 
@@ -743,6 +791,7 @@ class $$NotesTableTableManager extends RootTableManager<
             Value<bool> pinned = const Value.absent(),
             Value<bool> deleted = const Value.absent(),
             Value<DateTime?> deletedAt = const Value.absent(),
+            Value<String?> userId = const Value.absent(),
             Value<int> colorIndex = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -757,6 +806,7 @@ class $$NotesTableTableManager extends RootTableManager<
             pinned: pinned,
             deleted: deleted,
             deletedAt: deletedAt,
+            userId: userId,
             colorIndex: colorIndex,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -771,6 +821,7 @@ class $$NotesTableTableManager extends RootTableManager<
             Value<bool> pinned = const Value.absent(),
             Value<bool> deleted = const Value.absent(),
             Value<DateTime?> deletedAt = const Value.absent(),
+            Value<String?> userId = const Value.absent(),
             Value<int> colorIndex = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -785,6 +836,7 @@ class $$NotesTableTableManager extends RootTableManager<
             pinned: pinned,
             deleted: deleted,
             deletedAt: deletedAt,
+            userId: userId,
             colorIndex: colorIndex,
             createdAt: createdAt,
             updatedAt: updatedAt,

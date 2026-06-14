@@ -8,6 +8,7 @@ class NoteModel {
   final bool pinned;
   final bool deleted;
   final DateTime? deletedAt;
+  final String? userId;
   final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -21,77 +22,51 @@ class NoteModel {
     required this.pinned,
     required this.deleted,
     this.deletedAt,
+    this.userId,
     required this.colorIndex,
     required this.createdAt,
     required this.updatedAt,
   });
 
   NoteModel copyWith({
-    String? id,
-    String? title,
-    String? content,
-    String? imagePath,
-    bool clearImage = false,
-    String? folder,
-    bool? pinned,
-    bool? deleted,
-    DateTime? deletedAt,
-    int? colorIndex,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    String? id, String? title, String? content, String? imagePath,
+    bool clearImage = false, String? folder, bool? pinned, bool? deleted,
+    DateTime? deletedAt, bool clearDeletedAt = false, String? userId, bool clearUserId = false,
+    int? colorIndex, DateTime? createdAt, DateTime? updatedAt,
   }) {
     return NoteModel(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      content: content ?? this.content,
+      id: id ?? this.id, title: title ?? this.title, content: content ?? this.content,
       imagePath: clearImage ? null : (imagePath ?? this.imagePath),
-      folder: folder ?? this.folder,
-      pinned: pinned ?? this.pinned,
+      folder: folder ?? this.folder, pinned: pinned ?? this.pinned,
       deleted: deleted ?? this.deleted,
-      deletedAt: deletedAt ?? this.deletedAt,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+      userId: clearUserId ? null : (userId ?? this.userId),
       colorIndex: colorIndex ?? this.colorIndex,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      createdAt: createdAt ?? this.createdAt, updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
   factory NoteModel.create({
-    String title = '',
-    String content = '',
-    String? imagePath,
-    String folder = '',
-    bool pinned = false,
-    bool deleted = false,
-    int colorIndex = 0,
+    String title = '', String content = '', String? imagePath,
+    String folder = '', bool pinned = false, String? userId, int colorIndex = 0,
   }) {
     final now = DateTime.now();
     return NoteModel(
-      id: _generateId(),
-      title: title,
-      content: content,
-      imagePath: imagePath,
-      folder: folder,
-      pinned: pinned,
-      deleted: deleted,
-      colorIndex: colorIndex,
-      createdAt: now,
-      updatedAt: now,
+      id: _genId(), title: title, content: content, imagePath: imagePath,
+      folder: folder, pinned: pinned, deleted: false, userId: userId,
+      colorIndex: colorIndex, createdAt: now, updatedAt: now,
     );
   }
 
-  static String _generateId() {
+  static String _genId() {
     final ms = DateTime.now().microsecondsSinceEpoch;
-    final r = (ms % 100000).toString().padLeft(5, '0');
-    return '$ms$r';
+    return '$ms${(ms % 100000).toString().padLeft(5, '0')}';
   }
 
   @override
   String toString() => 'NoteModel(id: $id, title: $title)';
-
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is NoteModel && id == other.id;
-
+  bool operator ==(Object other) => identical(this, other) || other is NoteModel && id == other.id;
   @override
   int get hashCode => id.hashCode;
 }

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/theme.dart';
 import '../providers/bg_provider.dart';
 import '../providers/note_providers.dart';
+import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/background_service.dart';
 import '../services/update_service.dart';
@@ -116,6 +117,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return ListView(
       children: [
         const SizedBox(height: 8),
+
+        // ═══ 账号 ═══
+        _Section(
+          children: [
+            Consumer(builder: (context, ref, _) {
+              final auth = ref.watch(authProvider);
+              final actions = ref.read(authProvider.notifier);
+              if (auth.isLoggedIn) {
+                return Column(children: [
+                  ListTile(
+                    leading: const Icon(Icons.account_circle, color: AppColors.primary),
+                    title: Text(auth.user!.email ?? '', style: const TextStyle(fontWeight: FontWeight.w500)),
+                    subtitle: const Text('已登录 · 笔记自动同步', style: TextStyle(fontSize: 13)),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: AppColors.danger),
+                    title: const Text('退出登录'),
+                    onTap: () => actions.logout(),
+                  ),
+                ]);
+              }
+              return ListTile(
+                leading: const Icon(Icons.login, color: AppColors.primary),
+                title: const Text('登录 / 注册'),
+                subtitle: const Text('登录后自动云同步笔记'),
+                trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                onTap: () => context.push('/auth'),
+              );
+            }),
+          ],
+        ),
 
         // ═══ 主题 ═══
         _Section(

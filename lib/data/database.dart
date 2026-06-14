@@ -15,6 +15,7 @@ class Notes extends Table {
   BoolColumn get pinned => boolean().withDefault(const Constant(false))();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get deletedAt => dateTime().nullable()();
+  TextColumn get userId => text().nullable()();
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -28,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +40,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             await m.addColumn(notes, notes.deleted);
             await m.addColumn(notes, notes.deletedAt);
+          }
+          if (from < 5) {
+            await m.addColumn(notes, notes.userId);
           }
         },
       );
@@ -84,6 +88,9 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
           .map((r) => r.read(notes.id))
           .get()
           .then((l) => l.length);
+
+  Future<List<Note>> getAllNotes() =>
+      (select(notes)..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).get();
 
   Future<Note?> getNote(String id) =>
       (select(notes)..where((t) => t.id.equals(id))).getSingleOrNull();
