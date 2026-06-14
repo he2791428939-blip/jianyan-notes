@@ -1,1 +1,1 @@
-{"version": "1.4.0", "versionCode": 12, "url": "https://cdn.jsdelivr.net/gh/he2791428939-blip/jianyan-notes@main/releases/app-arm64-v8a-release.apk", "notes": "🔐 邮箱登录/注册系统\n☁️ Supabase 云同步 (登录后自动上传/拉取)\n📱 未登录仍可正常本地使用\n🔄 登录后首次自动迁移本地笔记到云端"}
+{"version": "1.4.1", "versionCode": 13, "url": "https://cdn.jsdelivr.net/gh/he2791428939-blip/jianyan-notes@main/releases/app-arm64-v8a-release.apk", "notes": "🔐 邮箱登录/注册 + Supabase 云同步"}
